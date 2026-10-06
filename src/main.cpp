@@ -11,13 +11,10 @@ void printTokens(const vector<Token>& tokens){
 
 int main() {
     string source = R"(
-        let score = 15;
-
-        if (score >= 10) {
-            print("great");
-        }
-
-        let values = [1, 2, 3];
+        let x = 5;
+        let player_name1 = 42;
+        let _score2026 = 10;
+        print("ahoj");
     )";
 
     vector<Token> tokens = tokenize(source);

@@ -10,6 +10,10 @@ bool isLetter(char c){
     return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
 }
 
+bool isIdentifierChar(char c){
+    return isLetter(c) || isDigit(c) || c == '_';
+}
+
 TokenType getWordType(string word){
     /*
     Helper function, asigns types to keyword tokens. If no match is found, the Identifier type is used.
@@ -49,10 +53,10 @@ vector<Token> tokenize(string source){
             continue;
         }
 
-        // words and keywords
-        if (isLetter(source[i])){
+        // keywords and identifiers
+        if (isLetter(source[i]) || source[i] == '_'){
             string word;
-            while (i < source.size() && isLetter(source[i])){ //checks for letters
+            while (i < source.size() && isIdentifierChar(source[i])){ //continue while the char is valid inside an identifier
                 word += source[i];
                 i++; //increase for the inner while loop
             }
