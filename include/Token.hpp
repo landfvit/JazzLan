@@ -29,9 +29,11 @@ enum class TokenType{
     LessEqual,
     Greater,
     GreaterEqual,
-    //Symbols
+    //symbols
     LeftParen,
     RightParen,
+    LeftBracket,
+    RightBracket,
     LeftBrace,
     RightBrace,
     Comma,

@@ -7,3 +7,4 @@
 using namespace std;
 
 vector<Token> tokenize(string source);
+string tokenTypeToString(TokenType type);
