@@ -36,14 +36,27 @@ const Token& Parser::consume(TokenType type, const string& message) {
 unique_ptr<Expression> Parser::parsePrimary() {
     if (check(TokenType::Number)) {
         const Token& numberToken = advance();
+
         auto expression = make_unique<NumberExpression>();
         expression->value = stoi(numberToken.value);
 
         return expression;
     }
+
+    if (check(TokenType::Identifier)) {
+        const Token& identifierToken = advance();
+
+        auto expression = make_unique<IdentifierExpression>();
+        expression->name = identifierToken.value;
+
+        return expression;
+    }
+
     if (check(TokenType::LeftParen)) {
         advance();
+
         auto expression = parseExpression();
+        
         consume(
             TokenType::RightParen,
             "Expected ')'"

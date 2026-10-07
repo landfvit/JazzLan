@@ -22,6 +22,11 @@ struct VariableDeclaration {
     std::unique_ptr<Expression> value;
 };
 
+struct IdentifierExpression : Expression {
+    std::string name;
+};
+
 void printExpression(const Expression* expression);
+
 void printVariableDeclaration(const VariableDeclaration& variable);
 

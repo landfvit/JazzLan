@@ -9,7 +9,7 @@
 using namespace std;
 
 int main() {
-    string source = "let x = 5 * (3 + 2);";
+    string source = "let x = y * (3 + 2);";
 
     vector<Token> tokens = tokenize(source);
 
