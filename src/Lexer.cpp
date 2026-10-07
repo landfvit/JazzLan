@@ -2,22 +2,27 @@
 
 using namespace std;
 
+//returns true if char is a digit from 0 to 9
 bool isDigit(char c) {
     return '0' <= c && c <= '9';
 }
 
+//returns true if char is an uppercase or lowercase letter
 bool isLetter(char c) {
     return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
 }
 
+//returns true if char is allowed inside an identifier
+//that includes digits, but not at the 0th index
+//checked separately in tokenize()
 bool isIdentifierChar(char c) {
     return isLetter(c) || isDigit(c) || c == '_';
 }
 
+//converts a complete word into its TokenType
+//reserved keywords get their specific type
+//other words are treated as identifier
 TokenType getWordType(string word) {
-    /*
-    Helper function, asigns types to keyword tokens. If no match is found, the Identifier type is used.
-    */
     if (word == "let") {
         return TokenType::Let;
     }
@@ -42,30 +47,39 @@ TokenType getWordType(string word) {
     return TokenType::Identifier;
 }
 
+//converts source code into an ordered seq of tokens
 vector<Token> tokenize(string source) {
-    /*
-    Assigns tokens to an input sequence of chars.
-    */
     vector<Token> tokens;
+    //scan source code from L to R, one char at a time
     for (size_t i = 0; i < source.size(); i++) {
         // ignore whitespace
         if (source[i] == ' ' || source[i] == '\n' || source[i] == '\t') {
             continue;
         }
 
+        //-------------------------
         // keywords and identifiers
+        //-------------------------
+
+        //identifier must start witch letter or underscore
         if (isLetter(source[i]) || source[i] == '_') {
             string word;
-            while (i < source.size() && isIdentifierChar(source[i])) { //continue while the char is valid inside an identifier
+            //collect entire identifier/keyword
+            while (i < source.size() && isIdentifierChar(source[i])) { 
                 word += source[i];
-                i++; //increase for the inner while loop
+                i++; 
             }
-            i--; //decrease for the outer for loop when while loop condition is false to not skip 
+            //decrease for the outer for loop when while loop condition is false to not skip
+            i--;  
             tokens.push_back({getWordType(word), word});
             continue;
         }
 
+        //--------
         // numbers
+        //--------
+
+        //collects consecutive digits into a single Number token
         if (isDigit(source[i])) {
             string number;
             while (i < source.size() && isDigit(source[i])) { //check for digits
@@ -77,8 +91,12 @@ vector<Token> tokenize(string source) {
             continue;
         }
 
+        //--------
         // strings
-        if (source[i] == '"') { //checks for opening "
+        //--------
+
+        // " starts a string literal
+        if (source[i] == '"') {
             string value;
             i++; //skips to look at char after "
             while (i < source.size() && source[i] != '"') { //continues until closing " is found
@@ -89,7 +107,11 @@ vector<Token> tokenize(string source) {
             continue;
         }
 
+        //----------
         // operators
+        //----------
+
+        //single char operators
         if (source[i] == '+') {
             tokens.push_back({TokenType::Plus, "+"});
         } else if (source[i] == '-') {
@@ -98,6 +120,8 @@ vector<Token> tokenize(string source) {
             tokens.push_back({TokenType::Star, "*"});
         } else if (source[i] == '/') {
             tokens.push_back({TokenType::Slash, "/"});
+
+        //double char operators
         } else if (source[i] == '=') {
             if (i+1 < source.size() && source[i+1] == '=') {
                 tokens.push_back({TokenType::EqualEqual, "=="});
@@ -128,7 +152,11 @@ vector<Token> tokenize(string source) {
             }
         }
 
+        //--------
         // symbols
+        //--------
+
+
         if (source[i] == '(') {
             tokens.push_back({TokenType::LeftParen, "("});
         } else if (source[i] == ')') {
@@ -147,15 +175,14 @@ vector<Token> tokenize(string source) {
             tokens.push_back({TokenType::Semicolon, ";"});
         }
     }
+
     // end of file
     tokens.push_back({TokenType::EndOfFile, ""});
     return tokens;
 }
 
+//converts TokenType into readable text - debug only
 string tokenTypeToString(TokenType type) {
-    /*
-    made for Lexer testing
-    */
     switch (type) {
         //keywords
         case TokenType::Let: return "Let";

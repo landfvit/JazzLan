@@ -1,8 +1,8 @@
-#pragma once //read once
+#pragma once 
+
 #include <string>
 
-
-
+//all token categories lexer can currently recognise
 enum class TokenType{
     //keywords
     Let,
@@ -38,10 +38,14 @@ enum class TokenType{
     RightBrace,
     Comma,
     Semicolon,
-    //special
+    
+    //end of token stream
     EndOfFile
 };
 
+//structure of token produced by lexer
+//'type' - from above
+//'value' - original text from source code
 struct Token{
     TokenType type;
     std::string value;

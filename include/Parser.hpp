@@ -2,31 +2,35 @@
 
 #include <vector>
 #include <string>
+#include <memory>
 
 #include "Token.hpp"
 #include "AST.hpp"
 
+
 class Parser {
 private:
-    const std::vector<Token>& tokens; //reference to tokens from source code
-    size_t current = 0; //index of curren token
+    const std::vector<Token>& tokens; //reference to token seq produced by lexer
+    size_t current = 0;               //current token index
 
-    const Token& look(); //returns current token and does not move
-    const Token& advance(); //return current token and moves forward
-    bool check(TokenType type); //checks if current token has given type
+    const Token& look();              //returns current token
+    const Token& advance();           //returns token and moves forward
+    bool check(TokenType type);       //checks current token type
 
     const Token& consume(
         TokenType type,
         const std::string& message
-    ); // returns expected token or throws an error
+    );                                //expects token to have a given type or throws error
+
+    std::unique_ptr<Expression> parsePrimary(); //numbers, identifiers, ()
+    std::unique_ptr<Expression> parseMult();    //* / - higher precedence
+    std::unique_ptr<Expression> parseAdd();     //+ - - lower precedence
+    std::unique_ptr<Expression> parseExpression();
+
+    VariableDeclaration parseVariableDeclaration(); //let x = ...;
 
 public:
-    Parser(const std::vector<Token>& sourceTokens);
+    Parser(const std::vector<Token>& sourceTokens); //creates parser
 
-    std::unique_ptr<Expression> parsePrimary();
-    std::unique_ptr<Expression> parseMult();
-    std::unique_ptr<Expression> parseAdd();
-    std::unique_ptr<Expression> parseExpression(); 
-
-    VariableDeclaration parseVariableDeclaration(); //parses stuff like: let <identifier> = <number>;
+    Program parseProgram(); //parses whole program
 };
