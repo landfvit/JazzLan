@@ -4,7 +4,6 @@
 #include <vector>
 #include "Token.hpp"
 
-using namespace std;
 
-vector<Token> tokenize(string source);
-string tokenTypeToString(TokenType type);
+std::vector<Token> tokenize(std::string source);
+std::string tokenTypeToString(TokenType type);
