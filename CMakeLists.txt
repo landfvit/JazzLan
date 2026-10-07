@@ -9,6 +9,7 @@ add_executable(JazzLan
     src/main.cpp
     src/Lexer.cpp
     src/Parser.cpp
+    src/AST.cpp
 )
 
 target_include_directories(JazzLan PRIVATE include)

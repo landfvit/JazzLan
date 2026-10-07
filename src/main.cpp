@@ -1,20 +1,23 @@
 #include <iostream>
+#include <string>
+#include <vector>
+
 #include "Lexer.hpp"
 #include "Parser.hpp"
+#include "AST.hpp"
 
 using namespace std;
 
 int main() {
-    string source = "10 times 4";
+    string source = "let x = 5 * (3 + 2);";
 
-vector<Token> tokens = tokenize(source);
+    vector<Token> tokens = tokenize(source);
 
-Parser parser(tokens);
+    Parser parser(tokens);
 
-BinaryExpression expression = parser.parseBinaryExpression();
+    VariableDeclaration variable = parser.parseVariableDeclaration();
 
-cout << expression.left << endl;
-cout << expression.op << endl;
-cout << expression.right << endl;
+    printVariableDeclaration(variable);
+
     return 0;
 }

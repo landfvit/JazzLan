@@ -21,7 +21,12 @@ private:
     ); // returns expected token or throws an error
 
 public:
-    Parser(const std::vector<Token>& sourceTokens); //creates parser from source tokens
+    Parser(const std::vector<Token>& sourceTokens);
+
+    std::unique_ptr<Expression> parsePrimary();
+    std::unique_ptr<Expression> parseMult();
+    std::unique_ptr<Expression> parseAdd();
+    std::unique_ptr<Expression> parseExpression(); 
+
     VariableDeclaration parseVariableDeclaration(); //parses stuff like: let <identifier> = <number>;
-    BinaryExpression parseBinaryExpression(); //parses stuff like: 5 + 3
 };

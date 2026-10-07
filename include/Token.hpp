@@ -1,6 +1,6 @@
 #pragma once //read once
 #include <string>
-using namespace std;
+
 
 
 enum class TokenType{
@@ -44,5 +44,5 @@ enum class TokenType{
 
 struct Token{
     TokenType type;
-    string value;
+    std::string value;
 };
