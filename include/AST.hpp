@@ -27,6 +27,12 @@ struct IdentifierExpression : Expression {
     std::string name;
 };
 
+//function call
+struct CallExpression : Expression {
+    std::string name;
+    std::vector<std::unique_ptr<Expression>> arguments;
+};
+
 //base type for statements
 struct Statement {
     virtual ~Statement() = default;
@@ -60,6 +66,18 @@ struct AssignmentStatement : Statement {
 struct WhileStatement : Statement {
     std::unique_ptr<Expression> condition;
     std::vector<std::unique_ptr<Statement>> body;
+};
+
+//function declaration
+struct FunctionDeclaration : Statement {
+    std::string name;
+    std::vector<std::string> parameters;
+    std::vector<std::unique_ptr<Statement>> body;
+};
+
+//returns value from function
+struct ReturnStatement : Statement {
+    std::unique_ptr<Expression> value;
 };
 
 //whole program

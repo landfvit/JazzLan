@@ -328,4 +328,43 @@ unique_ptr<Statement> Parser::parseWhileStatement() {
     return statement;
 }
 
+//function declaration
+unique_ptr<Statement> Parser::parseFunctionDeclaration() {
+    consume(TokenType::Function, "Expected 'function'");
+
+    const Token& nameToken = consume(
+        TokenType::Identifier,
+        "expected function name"
+    );
+
+    consume(TokenType::LeftParen, "Expected '('");
+
+    vector<string> parameters;
+
+    //parse function parameters
+    if (!check(TokenType::RightParen)) {
+        do {
+            const Token& parameter = consume(
+                TokenType::Identifier,
+                "Expected parameter name"
+            );
+            parameters.push_back(parameter.value);
+            if (!check(TokenType::Comma)) {
+                break;
+            }
+
+            advance();
+        } while (true);
+    }
+    consume(TokenType::RightParen, "Expected ')'");
+    auto body = parseBlock();
+    auto statement = make_unique<FunctionDeclaration>();
+
+    statement->name = nameToken.value;
+    statement->parameters = std::move(parameters);
+    statement->body = std::move(body);
+
+    return statement;
+}
+
 

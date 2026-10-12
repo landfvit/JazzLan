@@ -35,8 +35,8 @@ private:
     std::unique_ptr<Statement> parseIfStatement(); //if/else ...
     std::unique_ptr<Statement> parseAssignmentStatement(); //assigns variable value
     std::unique_ptr<Statement> parseWhileStatement(); //while loop
-
     std::unique_ptr<Statement> parseVariableDeclaration(); //let x = ...;
+    std::unique_ptr<Statement> parseFunctionDeclaration(); //function definition
 
 public:
     Parser(const std::vector<Token>& sourceTokens); //creates parser
