@@ -101,12 +101,25 @@ void printProgram(
     const unordered_map<string, int>& variables
 ) {
     cout << "Program" << endl;
+    for (const auto& statement : program.statements) {
+        //variable declaration
+        if (const auto* variable =
+            dynamic_cast<const VariableDeclaration*>(statement.get())) {
+            printVariableDeclaration(*variable, variables);
+        }
 
-    for (const VariableDeclaration& statement : program.statements) {
-        printVariableDeclaration(
-            statement,
-            variables
-        );
+        //print statement
+        else if (const auto* print =
+            dynamic_cast<const PrintStatement*>(statement.get())) {
+            cout << "PrintStatement" << endl;
+            cout << "└── value:" << endl;
+            printExpressionTree(
+                print->value.get(),
+                "    ",
+                true,
+                variables
+            );
+        }
 
         cout << endl;
     }

@@ -1,6 +1,7 @@
 #include "Parser.hpp"
 
 #include <stdexcept>
+#include <utility>
 
 using namespace std;
  //init parses with source tokens
@@ -123,24 +124,25 @@ unique_ptr<Expression> Parser::parseExpression() {
 }
 
 //parser: let <identifier> = <expression>;
-VariableDeclaration Parser::parseVariableDeclaration() {
+unique_ptr<Statement> Parser::parseVariableDeclaration() {
     consume(TokenType::Let, "Expected 'let'");
 
     const Token& nameToken = consume(
-        TokenType::Identifier,
+        TokenType:: Identifier,
         "Expected variable name"
     );
-
     consume(TokenType::Equal, "Expected '='");
 
-    unique_ptr<Expression> value = parseExpression();
+    auto value = parseExpression();
 
     consume(TokenType::Semicolon, "Expected ';'");
 
-    return {
-        nameToken.value,
-        std::move(value)
-    };
+    auto statement = make_unique<VariableDeclaration>();
+
+    statement->name = nameToken.value;
+    statement->value = std::move(value);
+
+    return statement;
 }
 
 //parses statements unitl EOF
@@ -148,9 +150,8 @@ Program Parser::parseProgram() {
     Program program;
 
     while (!check(TokenType::EndOfFile)) {
-        VariableDeclaration statement = parseVariableDeclaration();
         program.statements.push_back(
-            std::move(statement)
+            parseStatement()
         );
     }
 

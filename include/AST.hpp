@@ -27,15 +27,25 @@ struct IdentifierExpression : Expression {
     std::string name;
 };
 
+//base type for statements
+struct Statement {
+    virtual ~Statement() = default;
+};
+
 //variable declaration
-struct VariableDeclaration {
+struct VariableDeclaration : Statement {
     std::string name;
+    std::unique_ptr<Expression> value;
+};
+
+//print(...)
+struct PrintStatement : Statement {
     std::unique_ptr<Expression> value;
 };
 
 //whole program
 struct Program {
-    std::vector<VariableDeclaration> statements;
+    std::vector<std::unique_ptr<Statement>> statements;
 };
 
 //debug printing

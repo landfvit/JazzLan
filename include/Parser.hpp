@@ -25,9 +25,11 @@ private:
     std::unique_ptr<Expression> parsePrimary(); //numbers, identifiers, ()
     std::unique_ptr<Expression> parseMult();    //* / - higher precedence
     std::unique_ptr<Expression> parseAdd();     //+ - - lower precedence
-    std::unique_ptr<Expression> parseExpression();
+    std::unique_ptr<Expression> parseExpression(); //3 + 4
+    std::unique_ptr<Statement> parseStatement(); // print, if, while ...
+    std::unique_ptr<Statement> parsePrintStatement(); //print specific
 
-    VariableDeclaration parseVariableDeclaration(); //let x = ...;
+    std::unique_ptr<Statement> parseVariableDeclaration(); //let x = ...;
 
 public:
     Parser(const std::vector<Token>& sourceTokens); //creates parser
