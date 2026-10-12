@@ -175,6 +175,12 @@ unique_ptr<Statement> Parser::parseStatement() {
     if (check(TokenType::While)) {
         return parseWhileStatement();
     }
+    if (check(TokenType::Function)) {
+        return parseFunctionDeclaration();
+    }
+    if (check(TokenType::Return)) {
+        return parseReturnStatement();
+    }
 
     throw runtime_error("Expected statement");
 }
@@ -367,4 +373,17 @@ unique_ptr<Statement> Parser::parseFunctionDeclaration() {
     return statement;
 }
 
+//handle return statement
+unique_ptr<Statement> Parser::parseReturnStatement() {
+    consume(TokenType::Return, "Expected 'return'");
+
+    auto value = parseExpression();
+
+    consume(TokenType::Semicolon, "Expected ';'");
+
+    auto statement = make_unique<ReturnStatement>();
+    statement->value = std::move(value);
+
+    return statement;
+}
 
