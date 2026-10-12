@@ -56,6 +56,28 @@ void printExpressionTree(
 
         return;
     }
+    //function call
+    if (const auto* call =
+        dynamic_cast<const CallExpression*>(expression)) {
+
+        cout << "CallExpression(" << call->name << ")" << endl;
+        if (!call->arguments.empty()) {
+            string childPrefix =
+                prefix + (isLast ? "    " : "│   ");
+
+            cout << childPrefix << "└── arguments:" << endl;
+
+            for (size_t i = 0; i < call->arguments.size(); i++) {
+                printExpressionTree(
+                    call->arguments[i].get(),
+                    childPrefix + "    ",
+                    i + 1 == call->arguments.size(),
+                    variables
+                );
+            }
+        }
+    return;
+    }
 
     cout << "UnknownExpression" << endl;
 }
@@ -224,7 +246,55 @@ void printStatementTree(
 
         return;
     }
-    
+        //return statement
+    if (const auto* returnStatement =
+        dynamic_cast<const ReturnStatement*>(statement)) {
+
+        cout << "ReturnStatement" << endl;
+        cout << childPrefix << "└── value:" << endl;
+
+        printExpressionTree(
+            returnStatement->value.get(),
+            childPrefix + "    ",
+            true,
+            variables
+        );
+
+        return;
+    }
+    //function declaration
+    if (const auto* function =
+        dynamic_cast<const FunctionDeclaration*>(statement)) {
+
+        cout << "FunctionDeclaration" << endl;
+        cout << childPrefix << "├── name: " << function->name << endl;
+
+        //function parameters
+        cout << childPrefix << "├── parameters: [";
+
+        for (size_t i = 0; i < function->parameters.size(); i++) {
+            cout << function->parameters[i];
+
+            if (i + 1 < function->parameters.size()) {
+                cout << ", ";
+            }
+        }
+
+        cout << "]" << endl;
+        cout << childPrefix << "└── body:" << endl;
+
+        //function body
+        for (size_t i = 0; i < function->body.size(); i++) {
+            printStatementTree(
+                function->body[i].get(),
+                childPrefix + "    ",
+                i + 1 == function->body.size(),
+                variables
+            );
+        }
+
+        return;
+    }
     cout << "UnknownStatement" << endl;
 }
 

@@ -5,6 +5,11 @@
 
 using namespace std;
 
+//signals a function return/fetch
+struct ReturnSignal {
+    int value;
+};
+
 //evaluates an expression and return its int value
 int Interpreter::evaluateExpression(
     const Expression* expression,
@@ -73,6 +78,45 @@ int Interpreter::evaluateExpression(
 
         throw runtime_error("Unknown operator: " + binary->op);
     }
+    //function call
+    if (const auto* call =
+        dynamic_cast<const CallExpression*>(expression)) {
+            //find function
+            auto it = functions.find(call->name);
+            if (it == functions.end()) {
+                throw runtime_error("Undefined function: " + call->name);
+            }
+
+            const FunctionDeclaration* function = it->second;
+            //check argument count
+            if (call->arguments.size() != function->parameters.size()) {
+                throw runtime_error("Invalid argument count: " + call->name);
+            }
+            //evaluate argument in current scope
+            vector<int> arguments;
+            for (const auto& argument : call->arguments) {
+                arguments.push_back(
+                    evaluateExpression(argument.get(), environment)
+                );
+            }
+            //create function scope
+            Environment local(&global);
+            //bind arguments to parameters
+            for (size_t i = 0; i < arguments.size(); i++) {
+                local.define(function->parameters[i], arguments[i]);
+            }
+            //exectue function body
+            try {
+                for (const auto& statement : function->body) {
+                    executeStatement(statement.get(), local);
+                }
+            }
+            catch (const ReturnSignal& result) {
+                return result.value;
+            }
+
+            throw runtime_error("Missing return: " + call->name);
+        }
 
     throw runtime_error("Unknown expression");
 }
@@ -148,6 +192,27 @@ void Interpreter::executeStatement(
 
         return;
     }
+    //function declaration
+    if (const auto* function = 
+        dynamic_cast<const FunctionDeclaration*>(statement)) {
+            if (functions.contains(function->name)) {
+                throw runtime_error(
+                "Function already defined: " + function->name
+                );
+            }
+            functions[function->name] = function;
+
+            return;
+        }
+    //return statement
+    if (const auto* returnStatement =
+        dynamic_cast<const ReturnStatement*>(statement)) {
+            int value = evaluateExpression(
+                returnStatement->value.get(),
+                environment
+            );
+            throw ReturnSignal{value};
+        }
     throw runtime_error("Unknown statement");
 }
 

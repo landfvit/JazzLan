@@ -38,8 +38,9 @@ const Token& Parser::consume(TokenType type, const string& message) {
 //parser functions
 //----------------
 
-//parses numbers, identifiers and paren. expressions
+//parses numbers, identifiers, function calls and ()
 unique_ptr<Expression> Parser::parsePrimary() {
+    //number expression
     if (check(TokenType::Number)) {
         const Token& numberToken = advance();
 
@@ -48,29 +49,51 @@ unique_ptr<Expression> Parser::parsePrimary() {
 
         return expression;
     }
-
+    //identifier or function call
     if (check(TokenType::Identifier)) {
         const Token& identifierToken = advance();
+        //function call
+        if (check(TokenType::LeftParen)) {
+            advance();
 
+            auto expression = make_unique<CallExpression>();
+            expression->name = identifierToken.value;
+
+            //parse arguments
+            if (!check(TokenType::RightParen)) {
+                do {
+                    expression->arguments.push_back(
+                        parseExpression()
+                    );
+
+                    if (!check(TokenType::Comma)) {
+                        break;
+                    }
+
+                    advance();
+                } while (true);
+            }
+
+            consume(TokenType::RightParen, "Expected ')'");
+
+            return expression;
+        }
+        //ordinary identifier
         auto expression = make_unique<IdentifierExpression>();
         expression->name = identifierToken.value;
 
         return expression;
     }
-
+    //parenthesized expression
     if (check(TokenType::LeftParen)) {
         advance();
 
         auto expression = parseExpression();
 
-        consume(
-            TokenType::RightParen,
-            "Expected ')'"
-        );
+        consume(TokenType::RightParen, "Expected ')'");
 
         return expression;
     }
-
     throw runtime_error("Expected expression");
 }
 

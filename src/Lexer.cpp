@@ -41,7 +41,7 @@ TokenType getWordType(string word) {
     if (word == "function") {
         return TokenType::Function;
     }
-    if (word == "return") {
+    if (word == "return" || word == "fetch") {
         return TokenType::Return;
     }
     return TokenType::Identifier;
