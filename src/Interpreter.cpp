@@ -6,7 +6,10 @@
 using namespace std;
 
 //evaluates an expression and return its int value
-int Interpreter::evaluateExpression(const Expression* expression) {
+int Interpreter::evaluateExpression(
+    const Expression* expression,
+    const Environment& environment
+) {
     //Number: return its value
     if (
         const auto* number = dynamic_cast<const NumberExpression*>(expression)
@@ -15,21 +18,17 @@ int Interpreter::evaluateExpression(const Expression* expression) {
     }
 
     //Identifier: find its current value in variables
-    if (
-        const auto* identifier = dynamic_cast<const IdentifierExpression*>(expression)
-    ) {
-        if (!variables.contains(identifier->name)) {
-            throw runtime_error("Undefined variable: " + identifier->name);
-        }
-        return variables.at(identifier->name);
+    if (const auto* identifier =
+        dynamic_cast<const IdentifierExpression*>(expression)) {
+            return environment.get(identifier->name);
     }
 
     //Binary expression: eval both sides and apply operators
     if (
         const auto* binary = dynamic_cast<const BinaryExpression*>(expression)
     ) {
-        int left = evaluateExpression(binary->left.get());
-        int right = evaluateExpression(binary->right.get());
+        int left = evaluateExpression(binary->left.get(), environment);
+        int right = evaluateExpression(binary->right.get(), environment);
 
         if (binary->op == "+") {
             return left + right;
@@ -78,79 +77,88 @@ int Interpreter::evaluateExpression(const Expression* expression) {
     throw runtime_error("Unknown expression");
 }
 
-//executes the whole program
+//executes the whole program in global scope
 void Interpreter::executeProgram(const Program& program) {
     for (const auto& statement : program.statements) {
-        executeStatement(statement.get());
+        executeStatement(statement.get(), global);
     }
 }
 
-//provides variable values for AST Tree print
+//returns global variables
 const unordered_map<string, int>& Interpreter::getVariables() const {
-    return variables;
+    return global.getVariables();
 }
 
-//executes a single statement
-void Interpreter::executeStatement(const Statement* statement) {
+//executes a single statement in given scope
+void Interpreter::executeStatement(
+    const Statement* statement,
+    Environment& environment
+) {
     //variable declaration
     if (const auto* variable =
         dynamic_cast<const VariableDeclaration*>(statement)) {
 
-        int value = evaluateExpression(variable->value.get());
-        variables[variable->name] = value;
+        int value = evaluateExpression(variable->value.get(), environment);
 
+        environment.define(variable->name, value);
         return;
     }
     //variable assignment
     if (const auto* assignment =
         dynamic_cast<const AssignmentStatement*>(statement)) {
-            //check if variable exists
-            if (!variables.contains(assignment->name)) {
-                throw runtime_error("Undefined variable: " + assignment->name);
-            }
 
-            //evaluate and assign new value
-            int value = evaluateExpression(assignment->value.get());
-            variables[assignment->name] = value;
+        int value = evaluateExpression(assignment->value.get(), environment);
 
-            return;
-        }
+        environment.assign(assignment->name, value);
+        return;
+    }
     //print statement
     if (const auto* print =
         dynamic_cast<const PrintStatement*>(statement)) {
 
-        int value = evaluateExpression(print->value.get());
-        cout << value << endl;
+        int value = evaluateExpression(print->value.get(), environment);
 
+        cout << value << endl;
         return;
     }
     //if/else statement
     if (const auto* ifStatement =
         dynamic_cast<const IfStatement*>(statement)) {
 
-        int condition = evaluateExpression(ifStatement->condition.get());
+        int condition = evaluateExpression(
+            ifStatement->condition.get(),
+            environment
+        );
 
-        const auto& branch = condition != 0
-            ? ifStatement->thenBranch
-            : ifStatement->elseBranch;
-
-        for (const auto& child : branch) {
-            executeStatement(child.get());
+        if (condition != 0) {
+            executeBlock(ifStatement->thenBranch, environment);
+        } else if (!ifStatement->elseBranch.empty()) {
+            executeBlock(ifStatement->elseBranch, environment);
         }
+
         return;
     }
     //while loop
     if (const auto* loop =
         dynamic_cast<const WhileStatement*>(statement)) {
 
-        while (evaluateExpression(loop->condition.get()) != 0) {
-            for (const auto& child : loop->body) {
-                executeStatement(child.get());
-            }
+        while (evaluateExpression(loop->condition.get(), environment) != 0) {
+            executeBlock(loop->body, environment);
         }
 
         return;
     }
-
     throw runtime_error("Unknown statement");
+}
+
+//executes statements in a new local scope
+void Interpreter::executeBlock(
+    const vector<unique_ptr<Statement>>& statements,
+    Environment& parentEnvironment
+) {
+    Environment local(&parentEnvironment);
+
+    for (const auto& statement : statements) {
+        executeStatement(statement.get(), local);
+    }
 }

@@ -9,18 +9,8 @@ using namespace std;
 
 int main() {
     string source = R"(
-        let i = 0;
-
-        while (i < 3) {
-            let j = 0;
-
-            while (j < 2) {
-                print(i * 10 + j);
-                j = j + 1;
-            }
-
-            i = i + 1;
-        }
+        let x = 10;
+        let x = 20;
     )";
 
     vector<Token> tokens = tokenize(source);

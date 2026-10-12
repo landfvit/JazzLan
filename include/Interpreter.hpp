@@ -1,25 +1,34 @@
 #pragma once
 
+#include <memory>
 #include <string>
+#include <vector>
 #include <unordered_map>
 
 #include "AST.hpp"
+#include "Environment.hpp"
 
 class Interpreter {
 private:
-    //stores variable names and their current int value
-    std::unordered_map<std::string, int> variables;
+    Environment global; //global scope
 
-    //evaluates an expression and returns its int result
-    int evaluateExpression(const Expression* expression);
+    int evaluateExpression(
+        const Expression* expression,
+        const Environment& environment
+    ); //evaluates expression in given scope
 
-    //executes one statement
-    void executeStatement(const Statement* statement);
+    void executeStatement(
+        const Statement* statement,
+        Environment& environment
+    ); //executes one statement
+
+    void executeBlock(
+        const std::vector<std::unique_ptr<Statement>>& statements,
+        Environment& parentEnvironment
+    ); //executes statements in a new local scope
 
 public:
-    //executes all statements in program
-    void executeProgram(const Program& program);
+    void executeProgram(const Program& program); //executes whole program
 
-    //provides variable values for AST Tree print
-    const std::unordered_map<std::string, int>& getVariables() const;
+    const std::unordered_map<std::string, int>& getVariables() const; //returns global variables
 };
