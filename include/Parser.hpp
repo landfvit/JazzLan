@@ -33,6 +33,7 @@ private:
     std::unique_ptr<Statement> parsePrintStatement(); //print specific
     std::vector<std::unique_ptr<Statement>> parseBlock(); //{....}
     std::unique_ptr<Statement> parseIfStatement(); //if/else
+    std::unique_ptr<Statement> parseAssignmentStatement(); //assigns variable value
 
     std::unique_ptr<Statement> parseVariableDeclaration(); //let x = ...;
 

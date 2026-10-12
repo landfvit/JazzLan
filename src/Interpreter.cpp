@@ -101,6 +101,20 @@ void Interpreter::executeStatement(const Statement* statement) {
 
         return;
     }
+    //variable assignment
+    if (const auto* assignment =
+        dynamic_cast<const AssignmentStatement*>(statement)) {
+            //check if variable exists
+            if (!variables.contains(assignment->name)) {
+                throw runtime_error("Undefined variable: " + assignment->name);
+            }
+
+            //evaluate and assign new value
+            int value = evaluateExpression(assignment->value.get());
+            variables[assignment->name] = value;
+
+            return;
+        }
     //print statement
     if (const auto* print =
         dynamic_cast<const PrintStatement*>(statement)) {

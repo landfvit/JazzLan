@@ -169,6 +169,9 @@ unique_ptr<Statement> Parser::parseStatement() {
     if (check(TokenType::If)) {
         return parseIfStatement();
     }
+    if (check(TokenType::Identifier)) {
+        return parseAssignmentStatement();
+    }
 
     throw runtime_error("Expected statement");
 }
@@ -278,6 +281,27 @@ unique_ptr<Statement> Parser::parseIfStatement() {
         auto elseBranch = parseBlock();
         statement->elseBranch = std::move(elseBranch);
     }
+
+    return statement;
+}
+
+//parses variable assignment
+unique_ptr<Statement> Parser::parseAssignmentStatement() {
+    const Token& nameToken = consume(
+        TokenType::Identifier,
+        "Expected variable name"
+    );
+
+    consume(TokenType::Equal, "Expected '='");
+
+    auto value = parseExpression();
+
+    consume(TokenType::Semicolon, "Expected ';'");
+
+    auto statement = make_unique<AssignmentStatement>();
+
+    statement->name = nameToken.value;
+    statement->value = std::move(value);
 
     return statement;
 }

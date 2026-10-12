@@ -50,6 +50,12 @@ struct IfStatement : Statement {
     std::vector<std::unique_ptr<Statement>> elseBranch;
 };
 
+//variable assignment
+struct AssignmentStatement : Statement {
+    std::string name;
+    std::unique_ptr<Expression> value;
+};
+
 //whole program
 struct Program {
     std::vector<std::unique_ptr<Statement>> statements;

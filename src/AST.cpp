@@ -24,12 +24,7 @@ void printExpressionTree(
     //identifier node
     if (const auto* identifier =
         dynamic_cast<const IdentifierExpression*>(expression)) {
-
         cout << "IdentifierExpression(" << identifier->name;
-
-        if (variables.contains(identifier->name)) {
-            cout << "=" << variables.at(identifier->name);
-        }
 
         cout << ")" << endl;
         return;
@@ -180,6 +175,23 @@ void printStatementTree(
                 );
             }
         }
+        return;
+    }
+    //variable assignment
+    if (const auto* assignment =
+        dynamic_cast<const AssignmentStatement*>(statement)) {
+
+        cout << "AssignmentStatement" << endl;
+        cout << childPrefix << "├── name: " << assignment->name << endl;
+        cout << childPrefix << "└── value:" << endl;
+
+        printExpressionTree(
+            assignment->value.get(),
+            childPrefix + "    ",
+            true,
+            variables
+        );
+
         return;
     }
     cout << "UnknownStatement" << endl;

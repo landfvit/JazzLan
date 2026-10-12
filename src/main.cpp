@@ -9,18 +9,16 @@ using namespace std;
 
 int main() {
     string source = R"(
-        let x = 10;
-        let y = 20;
+        let x = 5;
 
-        if (x < y) {
-            print(x);
+        x = x + 3;
+        print(x);
 
-            if (x == 10) {
-                print(100);
-            }
-        } else {
-            print(y);
+        if (x > 7) {
+            x = x * 2;
         }
+
+        print(x);
     )";
 
     vector<Token> tokens = tokenize(source);
