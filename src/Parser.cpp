@@ -158,5 +158,34 @@ Program Parser::parseProgram() {
     return program;
 }
 
+//selects correct statement parser
+unique_ptr<Statement> Parser::parseStatement() {
+    if (check(TokenType::Let)) {
+        return parseVariableDeclaration();
+    }
+    if (check(TokenType::Print)) {
+        return parsePrintStatement();
+    }
+
+    throw runtime_error("Expected statement");
+}
+
+//parser Print(...)
+unique_ptr<Statement> Parser::parsePrintStatement() {
+    consume(TokenType::Print, "Expected 'Print'");
+    consume(TokenType::LeftParen, "Expected '('");
+
+    auto value = parseExpression();
+
+    consume(TokenType::RightParen, "Expected ')'");
+    consume(TokenType::Semicolon, "Expected ';'");
+
+    auto statement = make_unique<PrintStatement>();
+
+    statement->value = std::move(value);
+
+    return statement;
+}
+
 
 
