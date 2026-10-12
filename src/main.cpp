@@ -10,8 +10,14 @@ using namespace std;
 int main() {
     string source = R"(
         let x = 5;
-        let y = x + 3;
-        let z = y * (x + 2);
+        let y = 10;
+
+        print(x < y);
+        print(x >= y);
+        print(x + 5 == y);
+        print(x * 2 != y);
+        print(3 + 2 * 4 > 10);
+        print(5 > 3 == x < y);
     )";
 
     vector<Token> tokens = tokenize(source);

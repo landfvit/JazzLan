@@ -50,18 +50,56 @@ int Interpreter::evaluateExpression(const Expression* expression) {
             return left / right;
         }
 
+        //comparison operators
+        if (binary->op == "<") {
+            return left < right;
+        }
+        if (binary->op == "<=") {
+            return left <= right;
+        }
+        if (binary->op == ">") {
+            return left > right;
+        }
+        if (binary->op == ">=") {
+            return left >= right;
+        }
+
+        //equality operators
+        if (binary->op == "==") {
+            return left == right;
+        }
+        if (binary->op == "!=") {
+            return left != right;
+        }
+
         throw runtime_error("Unknown operator: " + binary->op);
     }
 
     throw runtime_error("Unknown expression");
 }
 
-//executes all variable declarations in the program
+//executes all statements in the program
 void Interpreter::executeProgram(const Program& program) {
-    for (const VariableDeclaration& statement : program.statements) {
-        int value = evaluateExpression(statement.value.get());
-        variables[statement.name] = value;
-        cout << statement.name << " = " << value << endl;
+    for (const auto& statement : program.statements) {
+        //variable declaration
+        if (const auto* variable =
+            dynamic_cast<const VariableDeclaration*>(statement.get())) {
+
+            int value = evaluateExpression(variable->value.get());
+
+            variables[variable->name] = value;
+        }
+        //print statement
+        else if (const auto* print =
+            dynamic_cast<const PrintStatement*>(statement.get())) {
+
+            int value = evaluateExpression(print->value.get());
+
+            cout << value << endl;
+        }
+        else {
+            throw runtime_error("Unknown statement");
+        }
     }
 }
 

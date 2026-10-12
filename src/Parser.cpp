@@ -118,9 +118,9 @@ unique_ptr<Expression> Parser::parseAdd() {
     return left;
 }
 
-//entry point for expression parsing
+//entry point for expression parsing -> lowest precedence operation
 unique_ptr<Expression> Parser::parseExpression() {
-    return parseAdd();
+    return parseEquality();
 }
 
 //parser: let <identifier> = <expression>;
@@ -185,6 +185,54 @@ unique_ptr<Statement> Parser::parsePrintStatement() {
     statement->value = std::move(value);
 
     return statement;
+}
+
+//parses comparison operators
+unique_ptr<Expression> Parser::parseComparison() {
+    auto left = parseAdd();
+
+    while (
+        check(TokenType::Less) ||
+        check(TokenType::LessEqual) ||
+        check(TokenType::Greater) ||
+        check(TokenType::GreaterEqual) 
+    ) {
+        const Token& operatorToken = advance();
+        auto right = parseAdd();
+
+        auto expression = make_unique<BinaryExpression>();
+
+        expression->left = std::move(left);
+        expression->op = operatorToken.value;
+        expression->right = std::move(right);
+
+        left = std::move(expression);
+    }
+
+    return left;
+}
+
+//parser == and != operators
+unique_ptr<Expression> Parser::parseEquality() {
+    auto left = parseComparison();
+
+    while (
+        check(TokenType::EqualEqual) ||
+        check(TokenType::BangEqual)
+    ) {
+        const Token& operatorToken = advance();
+        auto right = parseComparison();
+
+        auto expression = make_unique<BinaryExpression>();
+
+        expression->left = std::move(left);
+        expression->op = operatorToken.value;
+        expression->right = std::move(right);
+
+        left = std::move(expression);
+    }
+
+    return left;
 }
 
 

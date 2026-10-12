@@ -26,6 +26,9 @@ private:
     std::unique_ptr<Expression> parseMult();    //* / - higher precedence
     std::unique_ptr<Expression> parseAdd();     //+ - - lower precedence
     std::unique_ptr<Expression> parseExpression(); //3 + 4
+    std::unique_ptr<Expression> parseComparison(); //< > <= >= ...
+    std::unique_ptr<Expression> parseEquality(); //== !=
+
     std::unique_ptr<Statement> parseStatement(); // print, if, while ...
     std::unique_ptr<Statement> parsePrintStatement(); //print specific
 
