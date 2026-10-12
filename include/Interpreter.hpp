@@ -13,6 +13,9 @@ private:
     //evaluates an expression and returns its int result
     int evaluateExpression(const Expression* expression);
 
+    //executes one statement
+    void executeStatement(const Statement* statement);
+
 public:
     //executes all statements in program
     void executeProgram(const Program& program);

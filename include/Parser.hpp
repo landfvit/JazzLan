@@ -31,6 +31,8 @@ private:
 
     std::unique_ptr<Statement> parseStatement(); // print, if, while ...
     std::unique_ptr<Statement> parsePrintStatement(); //print specific
+    std::vector<std::unique_ptr<Statement>> parseBlock(); //{....}
+    std::unique_ptr<Statement> parseIfStatement(); //if/else
 
     std::unique_ptr<Statement> parseVariableDeclaration(); //let x = ...;
 

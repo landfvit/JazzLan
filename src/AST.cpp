@@ -95,32 +95,109 @@ void printVariableDeclaration(
     );
 }
 
-//prints all statements in the program AST
+//recursively prints statements and nested branches
+void printStatementTree(
+    const Statement* statement,
+    const string& prefix,
+    bool isLast,
+    const unordered_map<string, int>& variables
+) {
+    cout << prefix << (isLast ? "└── " : "├── ");
+
+    string childPrefix = prefix + (isLast ? "    " : "│   ");
+    //variable declaration
+    if (const auto* variable =
+        dynamic_cast<const VariableDeclaration*>(statement)) {
+
+        cout << "VariableDeclaration" << endl;
+        cout << childPrefix << "├── name: " << variable->name << endl;
+        cout << childPrefix << "└── value:" << endl;
+
+        printExpressionTree(
+            variable->value.get(),
+            childPrefix + "    ",
+            true,
+            variables
+        );
+        return;
+    }
+    //print statement
+    if (const auto* print =
+        dynamic_cast<const PrintStatement*>(statement)) {
+
+        cout << "PrintStatement" << endl;
+        cout << childPrefix << "└── value:" << endl;
+
+        printExpressionTree(
+            print->value.get(),
+            childPrefix + "    ",
+            true,
+            variables
+        );
+
+        return;
+    }
+    //if/else statement
+    if (const auto* ifStatement =
+        dynamic_cast<const IfStatement*>(statement)) {
+
+        cout << "IfStatement" << endl;
+
+        cout << childPrefix << "├── condition:" << endl;
+
+        printExpressionTree(
+            ifStatement->condition.get(),
+            childPrefix + "│   ",
+            true,
+            variables
+        );
+
+        bool hasElse = !ifStatement->elseBranch.empty();
+
+        cout << childPrefix
+             << (hasElse ? "├── thenBranch:" : "└── thenBranch:")
+             << endl;
+
+        string thenPrefix = childPrefix + (hasElse ? "│   " : "    ");
+
+        for (size_t i = 0; i < ifStatement->thenBranch.size(); i++) {
+            printStatementTree(
+                ifStatement->thenBranch[i].get(),
+                thenPrefix,
+                i + 1 == ifStatement->thenBranch.size(),
+                variables
+            );
+        }
+        if (hasElse) {
+            cout << childPrefix << "└── elseBranch:" << endl;
+
+            for (size_t i = 0; i < ifStatement->elseBranch.size(); i++) {
+                printStatementTree(
+                    ifStatement->elseBranch[i].get(),
+                    childPrefix + "    ",
+                    i + 1 == ifStatement->elseBranch.size(),
+                    variables
+                );
+            }
+        }
+        return;
+    }
+    cout << "UnknownStatement" << endl;
+}
+
+//prints the whole program AST
 void printProgram(
     const Program& program,
     const unordered_map<string, int>& variables
 ) {
     cout << "Program" << endl;
-    for (const auto& statement : program.statements) {
-        //variable declaration
-        if (const auto* variable =
-            dynamic_cast<const VariableDeclaration*>(statement.get())) {
-            printVariableDeclaration(*variable, variables);
-        }
 
-        //print statement
-        else if (const auto* print =
-            dynamic_cast<const PrintStatement*>(statement.get())) {
-            cout << "PrintStatement" << endl;
-            cout << "└── value:" << endl;
-            printExpressionTree(
-                print->value.get(),
-                "    ",
-                true,
-                variables
-            );
-        }
-
-        cout << endl;
+    for (size_t i = 0; i < program.statements.size(); i++) {
+        printStatementTree(
+            program.statements[i].get(),
+            "",
+            i + 1 == program.statements.size(),
+            variables
+        );
     }
 }

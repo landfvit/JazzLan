@@ -166,6 +166,9 @@ unique_ptr<Statement> Parser::parseStatement() {
     if (check(TokenType::Print)) {
         return parsePrintStatement();
     }
+    if (check(TokenType::If)) {
+        return parseIfStatement();
+    }
 
     throw runtime_error("Expected statement");
 }
@@ -235,5 +238,48 @@ unique_ptr<Expression> Parser::parseEquality() {
     return left;
 }
 
+//parses a block of statement
+vector<unique_ptr<Statement>> Parser::parseBlock() {
+    consume(TokenType::LeftBrace, "Expected '{'");
+    
+    vector<unique_ptr<Statement>> statements;
+
+    while (
+        !check(TokenType::RightBrace) &&
+        !check(TokenType::EndOfFile)
+    ) {
+        statements.push_back(parseStatement());
+    }
+
+    consume(TokenType::RightBrace, "Expected '}'");
+
+    return statements;
+}
+
+//parses if/else statement
+unique_ptr<Statement> Parser::parseIfStatement() {
+    consume(TokenType::If, "Expected 'if'");
+    consume(TokenType::LeftParen, "Expected '('");
+
+    auto condition = parseExpression();
+
+    consume(TokenType::RightParen, "Expected ')'");
+
+    auto thenBranch = parseBlock();
+    auto statement = make_unique<IfStatement>();
+
+    statement->condition = std::move(condition);
+    statement->thenBranch = std::move(thenBranch);
+
+    //optional else branch
+    if (check(TokenType::Else)) {
+        advance();
+
+        auto elseBranch = parseBlock();
+        statement->elseBranch = std::move(elseBranch);
+    }
+
+    return statement;
+}
 
 
