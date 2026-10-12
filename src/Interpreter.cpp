@@ -139,6 +139,18 @@ void Interpreter::executeStatement(const Statement* statement) {
         }
         return;
     }
+    //while loop
+    if (const auto* loop =
+        dynamic_cast<const WhileStatement*>(statement)) {
+
+        while (evaluateExpression(loop->condition.get()) != 0) {
+            for (const auto& child : loop->body) {
+                executeStatement(child.get());
+            }
+        }
+
+        return;
+    }
 
     throw runtime_error("Unknown statement");
 }

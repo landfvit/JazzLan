@@ -56,6 +56,12 @@ struct AssignmentStatement : Statement {
     std::unique_ptr<Expression> value;
 };
 
+//while statement
+struct WhileStatement : Statement {
+    std::unique_ptr<Expression> condition;
+    std::vector<std::unique_ptr<Statement>> body;
+};
+
 //whole program
 struct Program {
     std::vector<std::unique_ptr<Statement>> statements;

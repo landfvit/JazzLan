@@ -172,6 +172,9 @@ unique_ptr<Statement> Parser::parseStatement() {
     if (check(TokenType::Identifier)) {
         return parseAssignmentStatement();
     }
+    if (check(TokenType::While)) {
+        return parseWhileStatement();
+    }
 
     throw runtime_error("Expected statement");
 }
@@ -302,6 +305,25 @@ unique_ptr<Statement> Parser::parseAssignmentStatement() {
 
     statement->name = nameToken.value;
     statement->value = std::move(value);
+
+    return statement;
+}
+
+//while loop
+unique_ptr<Statement> Parser::parseWhileStatement() {
+    consume(TokenType::While, "Expected 'while'");
+    consume(TokenType::LeftParen, "Expected '('");
+
+    auto condition = parseExpression();
+
+    consume(TokenType::RightParen, "Expected ')'");
+
+    auto body = parseBlock();
+
+    auto statement = make_unique<WhileStatement>();
+
+    statement->condition = std::move(condition);
+    statement->body = std::move(body);
 
     return statement;
 }

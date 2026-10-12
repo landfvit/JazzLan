@@ -194,6 +194,37 @@ void printStatementTree(
 
         return;
     }
+    //while loop
+    if (const auto* loop =
+        dynamic_cast<const WhileStatement*>(statement)) {
+
+        cout << "WhileStatement" << endl;
+
+        //condition
+        cout << childPrefix << "├── condition:" << endl;
+
+        printExpressionTree(
+            loop->condition.get(),
+            childPrefix + "│   ",
+            true,
+            variables
+        );
+
+        //loop body
+        cout << childPrefix << "└── body:" << endl;
+
+        for (size_t i = 0; i < loop->body.size(); i++) {
+            printStatementTree(
+                loop->body[i].get(),
+                childPrefix + "    ",
+                i + 1 == loop->body.size(),
+                variables
+            );
+        }
+
+        return;
+    }
+    
     cout << "UnknownStatement" << endl;
 }
 

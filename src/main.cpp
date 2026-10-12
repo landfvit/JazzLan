@@ -9,34 +9,37 @@ using namespace std;
 
 int main() {
     string source = R"(
-        let x = 5;
+        let i = 0;
 
-        x = x + 3;
-        print(x);
+        while (i < 3) {
+            let j = 0;
 
-        if (x > 7) {
-            x = x * 2;
+            while (j < 2) {
+                print(i * 10 + j);
+                j = j + 1;
+            }
+
+            i = i + 1;
         }
-
-        print(x);
     )";
 
     vector<Token> tokens = tokenize(source);
 
     Parser parser(tokens);
     Program program = parser.parseProgram();
-
-    //execute the program
     Interpreter interpreter;
-    interpreter.executeProgram(program);
-
-    cout << endl;
 
     //show AST structure
     printProgram(
         program,
         interpreter.getVariables()
     );
+
+    //execute the program
+    interpreter.executeProgram(program);
+
+    cout << endl;
+
 
     return 0;
 }
