@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 #include <utility>
+#include <unordered_set>
 
 using namespace std;
  //init parses with source tokens
@@ -192,9 +193,6 @@ unique_ptr<Statement> Parser::parseStatement() {
     if (check(TokenType::If)) {
         return parseIfStatement();
     }
-    if (check(TokenType::Identifier)) {
-        return parseAssignmentStatement();
-    }
     if (check(TokenType::While)) {
         return parseWhileStatement();
     }
@@ -203,6 +201,16 @@ unique_ptr<Statement> Parser::parseStatement() {
     }
     if (check(TokenType::Return)) {
         return parseReturnStatement();
+    }
+    //standalone expression
+    if (check(TokenType::Identifier)) {
+        if (
+            current + 1 < tokens.size() &&
+            tokens[current + 1].type == TokenType::Equal
+        ) {
+            return parseAssignmentStatement();
+        }
+        return parseExpressionStatement();
     }
 
     throw runtime_error("Expected statement");
@@ -369,7 +377,7 @@ unique_ptr<Statement> Parser::parseFunctionDeclaration() {
     consume(TokenType::LeftParen, "Expected '('");
 
     vector<string> parameters;
-
+    unordered_set<string> usedParameters;
     //parse function parameters
     if (!check(TokenType::RightParen)) {
         do {
@@ -377,14 +385,20 @@ unique_ptr<Statement> Parser::parseFunctionDeclaration() {
                 TokenType::Identifier,
                 "Expected parameter name"
             );
+            //check duplicate parameter
+            if (!usedParameters.insert(parameter.value).second) {
+                throw runtime_error(
+                    "Duplicate parameter: " + parameter.value
+                );
+            }
             parameters.push_back(parameter.value);
             if (!check(TokenType::Comma)) {
                 break;
             }
-
             advance();
         } while (true);
     }
+
     consume(TokenType::RightParen, "Expected ')'");
     auto body = parseBlock();
     auto statement = make_unique<FunctionDeclaration>();
@@ -409,4 +423,13 @@ unique_ptr<Statement> Parser::parseReturnStatement() {
 
     return statement;
 }
+//parses standalone expression
+unique_ptr<Statement> Parser::parseExpressionStatement() {
+    auto value = parseExpression();
+    consume(TokenType::Semicolon, "Expected ';'");
 
+    auto statement = make_unique<ExpressionStatement>();
+    statement->value = std::move(value);
+
+    return statement;
+}

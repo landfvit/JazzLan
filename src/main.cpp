@@ -1,4 +1,8 @@
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
 #include <exception>
 
 #include "Lexer.hpp"
@@ -8,51 +12,61 @@
 
 using namespace std;
 
-int main() {
-    string source = R"(
-        function add(a, b) {
-            fetch a + b;
-        }
-
-        function maximum(a, b) {
-            if (a > b) {
-                fetch a;
-            }
-
-            return b;
-        }
-
-        let x = add(5, 3);
-
-        print(x);
-        print(maximum(10, 20));
-    )";
-
-    //tokenize source code
-    vector<Token> tokens = tokenize(source);
-
-    //parse tokens into AST
-    Parser parser(tokens);
-    Program program = parser.parseProgram();
-
-    Interpreter interpreter;
-
-    //execute program
-    try {
-        interpreter.executeProgram(program);
-    }
-    catch (const exception& error) {
-        cerr << "RuntimeError: " << error.what() << endl;
+int main(int argc, char* argv[]) {
+    //check command arguments
+    if (argc < 2 || argc > 3) {
+        cerr << "Usage: JazzLan <file.jazz> [--ast]" << endl;
         return 1;
     }
 
-    cout << endl;
+    //optional AST output
+    bool showAST = false;
 
-    //show AST structure
-    printProgram(
-        program,
-        interpreter.getVariables()
-    );
+    if (argc == 3) {
+        if (string(argv[2]) != "--ast") {
+            cerr << "Unknown option: " << argv[2] << endl;
+            return 1;
+        }
+
+        showAST = true;
+    }
+
+    //open source file
+    ifstream file(argv[1]);
+
+    if (!file.is_open()) {
+        cerr << "Cannot open file: " << argv[1] << endl;
+        return 1;
+    }
+
+    //read source code
+    stringstream buffer;
+    buffer << file.rdbuf();
+
+    string source = buffer.str();
+
+    try {
+        //tokenize source code
+        vector<Token> tokens = tokenize(source);
+
+        //parse tokens into AST
+        Parser parser(tokens);
+        Program program = parser.parseProgram();
+
+        //execute program
+        Interpreter interpreter;
+        interpreter.executeProgram(program);
+
+        //optional AST debug output
+        if (showAST) {
+            cout << endl;
+            printProgram(program, interpreter.getVariables());
+        }
+    }
+    catch (const exception& error) {
+        cerr << "JazzLanError: " << error.what() << endl;
+        return 1;
+    }
 
     return 0;
 }

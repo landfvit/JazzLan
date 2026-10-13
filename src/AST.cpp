@@ -295,6 +295,22 @@ void printStatementTree(
 
         return;
     }
+    //expression statement
+    if (const auto* expressionStatement =
+        dynamic_cast<const ExpressionStatement*>(statement)) {
+
+        cout << "ExpressionStatement" << endl;
+        cout << childPrefix << "└── value:" << endl;
+
+        printExpressionTree(
+            expressionStatement->value.get(),
+            childPrefix + "    ",
+            true,
+            variables
+        );
+
+        return;
+    }
     cout << "UnknownStatement" << endl;
 }
 

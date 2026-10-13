@@ -80,6 +80,10 @@ struct ReturnStatement : Statement {
     std::unique_ptr<Expression> value;
 };
 
+struct ExpressionStatement : Statement {
+    std::unique_ptr<Expression> value;
+};
+
 //whole program
 struct Program {
     std::vector<std::unique_ptr<Statement>> statements;

@@ -1,0 +1,8 @@
+function factorial(n) {
+    if (n <= 1) {
+        fetch 1;
+    }
+    fetch n * factorial(n - 1);
+}
+
+print(factorial(5));

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -16,6 +17,11 @@ private:
         const Expression* expression,
         const Environment& environment
     ); //evaluates expression in given scope
+
+    std::optional<int> callFunction(
+        const CallExpression* call,
+        const Environment& environment
+    ); //executes function call
 
     void executeStatement(
         const Statement* statement,
