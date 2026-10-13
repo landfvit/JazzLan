@@ -1,99 +1,208 @@
 #include "Interpreter.hpp"
 
+#include <cstdint>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
+#include <utility>
 
 using namespace std;
 
-//signals a function return/fetch
+//signals function return/fetch
 struct ReturnSignal {
-    int value;
+    Value value;
 };
+//checks numeric values
+static bool isNumeric(const Value& value) {
+    return holds_alternative<int64_t>(value) || holds_alternative<double>(value);
+}
+//converts numeric value to double
+static double asDouble(const Value& value) {
+    if (holds_alternative<int64_t>(value)) {
+        return static_cast<double>(get<int64_t>(value));
+    }
+    if (holds_alternative<double>(value)) {
+        return get<double>(value);
+    }
+    throw runtime_error("Expected numeric value");
+}
+//evaluates conditions
+static bool isTruthy(const Value& value) {
+    if (holds_alternative<bool>(value)) {
+        return get<bool>(value);
+    }
+    if (holds_alternative<int64_t>(value)) {
+        return get<int64_t>(value) != 0;
+    }
+    if (holds_alternative<double>(value)) {
+        return get<double>(value) != 0.0;
+    }
+    throw runtime_error("Condition must be bool or number");
+}
 
-//evaluates an expression and return its int value
-int Interpreter::evaluateExpression(
+//evaluates expression in given scope
+Value Interpreter::evaluateExpression(
     const Expression* expression,
     const Environment& environment
 ) {
-    //Number: return its value
-    if (
-        const auto* number = dynamic_cast<const NumberExpression*>(expression)
-    ) {
+    if (expression == nullptr) {
+        throw runtime_error("Missing expression");
+    }
+    //integer expression
+    if (const auto* number =
+        dynamic_cast<const NumberExpression*>(expression)) {
         return number->value;
     }
-
-    //Identifier: find its current value in variables
+    //float expression
+    if (const auto* number =
+        dynamic_cast<const FloatExpression*>(expression)) {
+        return number->value;
+    }
+    //string expression
+    if (const auto* text =
+        dynamic_cast<const StringExpression*>(expression)) {
+        return text->value;
+    }
+    //boolean expression
+    if (const auto* boolean =
+        dynamic_cast<const BoolExpression*>(expression)) {
+        return boolean->value;
+    }
+    //identifier expression
     if (const auto* identifier =
         dynamic_cast<const IdentifierExpression*>(expression)) {
-            return environment.get(identifier->name);
+        return environment.get(identifier->name);
     }
+    //binary expression
+    if (const auto* binary =
+        dynamic_cast<const BinaryExpression*>(expression)) {
 
-    //Binary expression: eval both sides and apply operators
-    if (
-        const auto* binary = dynamic_cast<const BinaryExpression*>(expression)
-    ) {
-        int left = evaluateExpression(binary->left.get(), environment);
-        int right = evaluateExpression(binary->right.get(), environment);
+        Value left = evaluateExpression(binary->left.get(), environment);
+        Value right = evaluateExpression(binary->right.get(), environment);
 
+        bool bothIntegers =
+            holds_alternative<int64_t>(left) &&
+            holds_alternative<int64_t>(right);
+
+        bool bothNumeric = isNumeric(left) && isNumeric(right);
+
+        //addition and string concatenation
         if (binary->op == "+") {
-            return left + right;
+            if (
+                holds_alternative<string>(left) &&
+                holds_alternative<string>(right)
+            ) {
+                return get<string>(left) + get<string>(right);
+            }
+            if (!bothNumeric) {
+                throw runtime_error(
+                    "Operator '+' requires two numbers or two strings"
+                );
+            }
+            if (bothIntegers) {
+                return get<int64_t>(left) + get<int64_t>(right);
+            }
+            return asDouble(left) + asDouble(right);
         }
-
-        if (binary->op == "-") {
-            return left - right;
-        }
-
-        if (binary->op == "*") {
-            return left * right;
-        }
-
-        if (binary->op == "/") {
-            if (right == 0) {
+        //arithmetic operators
+        if (
+            binary->op == "-" ||
+            binary->op == "*" ||
+            binary->op == "/"
+        ) {
+            if (!bothNumeric) {
+                throw runtime_error(
+                    "Operator requires numeric operands: " + binary->op
+                );
+            }
+            if (binary->op == "-") {
+                if (bothIntegers) {
+                    return get<int64_t>(left) - get<int64_t>(right);
+                }
+                return asDouble(left) - asDouble(right);
+            }
+            if (binary->op == "*") {
+                if (bothIntegers) {
+                    return get<int64_t>(left) * get<int64_t>(right);
+                }
+                return asDouble(left) * asDouble(right);
+            }
+            if (asDouble(right) == 0.0) {
                 throw runtime_error("Division by zero");
             }
-            return left / right;
-        }
+            if (bothIntegers) {
+                int64_t a = get<int64_t>(left);
+                int64_t b = get<int64_t>(right);
 
+                if (a == numeric_limits<int64_t>::min() && b == -1) {
+                    throw runtime_error("Integer overflow");
+                }
+                return a / b;
+            }
+            return asDouble(left) / asDouble(right);
+        }
         //comparison operators
-        if (binary->op == "<") {
-            return left < right;
-        }
-        if (binary->op == "<=") {
-            return left <= right;
-        }
-        if (binary->op == ">") {
-            return left > right;
-        }
-        if (binary->op == ">=") {
-            return left >= right;
-        }
+        if (
+            binary->op == "<" ||
+            binary->op == "<=" ||
+            binary->op == ">" ||
+            binary->op == ">="
+        ) {
+            if (!bothNumeric) {
+                throw runtime_error("Comparison requires numeric operands");
+            }
+            if (bothIntegers) {
+                int64_t a = get<int64_t>(left);
+                int64_t b = get<int64_t>(right);
 
+                if (binary->op == "<") return a < b;
+                if (binary->op == "<=") return a <= b;
+                if (binary->op == ">") return a > b;
+                return a >= b;
+            }
+            double a = asDouble(left);
+            double b = asDouble(right);
+
+            if (binary->op == "<") return a < b;
+            if (binary->op == "<=") return a <= b;
+            if (binary->op == ">") return a > b;
+            return a >= b;
+        }
         //equality operators
-        if (binary->op == "==") {
-            return left == right;
-        }
-        if (binary->op == "!=") {
-            return left != right;
-        }
+        if (binary->op == "==" || binary->op == "!=") {
+            bool equal;
 
+            if (bothNumeric) {
+                if (bothIntegers) {
+                    equal = get<int64_t>(left) == get<int64_t>(right);
+                } else {
+                    equal = asDouble(left) == asDouble(right);
+                }
+            } else {
+                equal = left == right;
+            }
+
+            return binary->op == "==" ? equal : !equal;
+        }
         throw runtime_error("Unknown operator: " + binary->op);
     }
     //function call expression
     if (const auto* call =
         dynamic_cast<const CallExpression*>(expression)) {
-            optional<int> result = callFunction(call, environment);
-            if (!result.has_value()) {
-                throw runtime_error(
-                    "FUnction returned no value: " + call->name
-                );
-            }
-            return result.value();
-        }
 
+        optional<Value> result = callFunction(call, environment);
+
+        if (!result.has_value()) {
+            throw runtime_error(
+                "Function returned no value: " + call->name
+            );
+        }
+        return result.value();
+    }
     throw runtime_error("Unknown expression");
 }
 
-//executes the whole program in global scope
+//executes whole program in global scope
 void Interpreter::executeProgram(const Program& program) {
     try {
         for (const auto& statement : program.statements) {
@@ -104,13 +213,12 @@ void Interpreter::executeProgram(const Program& program) {
         throw runtime_error("'return' or 'fetch' outside function");
     }
 }
-
 //returns global variables
-const unordered_map<string, int>& Interpreter::getVariables() const {
+const unordered_map<string, VariableInfo>& Interpreter::getVariables() const {
     return global.getVariables();
 }
 
-//executes a single statement in given scope
+//executes single statement in given scope
 void Interpreter::executeStatement(
     const Statement* statement,
     Environment& environment
@@ -119,16 +227,28 @@ void Interpreter::executeStatement(
     if (const auto* variable =
         dynamic_cast<const VariableDeclaration*>(statement)) {
 
-        int value = evaluateExpression(variable->value.get(), environment);
+        optional<Value> value;
 
-        environment.define(variable->name, value);
+        if (variable->value) {
+            value = evaluateExpression(variable->value.get(), environment);
+        }
+
+        environment.define(
+            variable->name,
+            std::move(value),
+            variable->declaredType,
+            variable->isConst
+        );
         return;
     }
     //variable assignment
     if (const auto* assignment =
         dynamic_cast<const AssignmentStatement*>(statement)) {
 
-        int value = evaluateExpression(assignment->value.get(), environment);
+        Value value = evaluateExpression(
+            assignment->value.get(),
+            environment
+        );
 
         environment.assign(assignment->name, value);
         return;
@@ -137,59 +257,66 @@ void Interpreter::executeStatement(
     if (const auto* print =
         dynamic_cast<const PrintStatement*>(statement)) {
 
-        int value = evaluateExpression(print->value.get(), environment);
+        Value value = evaluateExpression(
+            print->value.get(),
+            environment
+        );
 
-        cout << value << endl;
+        cout << valueToString(value) << endl;
         return;
     }
     //if/else statement
     if (const auto* ifStatement =
         dynamic_cast<const IfStatement*>(statement)) {
 
-        int condition = evaluateExpression(
+        Value condition = evaluateExpression(
             ifStatement->condition.get(),
             environment
         );
 
-        if (condition != 0) {
+        if (isTruthy(condition)) {
             executeBlock(ifStatement->thenBranch, environment);
         } else if (!ifStatement->elseBranch.empty()) {
             executeBlock(ifStatement->elseBranch, environment);
         }
-
         return;
     }
     //while loop
     if (const auto* loop =
         dynamic_cast<const WhileStatement*>(statement)) {
 
-        while (evaluateExpression(loop->condition.get(), environment) != 0) {
+        while (isTruthy(
+            evaluateExpression(loop->condition.get(), environment)
+        )) {
             executeBlock(loop->body, environment);
         }
-
         return;
     }
     //function declaration
-    if (const auto* function = 
+    if (const auto* function =
         dynamic_cast<const FunctionDeclaration*>(statement)) {
-            environment.defineFunction(function->name, function);
-            return;
-        }
+
+        environment.defineFunction(function->name, function);
+        return;
+    }
     //return statement
     if (const auto* returnStatement =
         dynamic_cast<const ReturnStatement*>(statement)) {
-            int value = evaluateExpression(
-                returnStatement->value.get(),
-                environment
-            );
-            throw ReturnSignal{value};
-        }
+
+        Value value = evaluateExpression(
+            returnStatement->value.get(),
+            environment
+        );
+
+        throw ReturnSignal{std::move(value)};
+    }
     //standalone expression
-    if (const auto& expressionStatement =
-    dynamic_cast<const ExpressionStatement*>(statement)) {
-        //function call without required return value
-        if (const auto& call = 
-        dynamic_cast<const CallExpression*>(expressionStatement->value.get())) {
+    if (const auto* expressionStatement =
+        dynamic_cast<const ExpressionStatement*>(statement)) {
+
+        if (const auto* call =
+            dynamic_cast<const CallExpression*>(expressionStatement->value.get())) {
+
             callFunction(call, environment);
         } else {
             evaluateExpression(expressionStatement->value.get(), environment);
@@ -199,7 +326,7 @@ void Interpreter::executeStatement(
     throw runtime_error("Unknown statement");
 }
 
-//executes statements in a new local scope
+//executes statements in new local scope
 void Interpreter::executeBlock(
     const vector<unique_ptr<Statement>>& statements,
     Environment& parentEnvironment
@@ -211,32 +338,39 @@ void Interpreter::executeBlock(
     }
 }
 
-//exectues function call
-optional<int> Interpreter::callFunction(
+//executes function call
+optional<Value> Interpreter::callFunction(
     const CallExpression* call,
     const Environment& callerEnvironment
 ) {
     //find function in current or parent scope
     FunctionBinding binding = callerEnvironment.getFunction(call->name);
+
     const auto* function = binding.declaration;
-    //cehck argument count
+
+    //check argument count
     if (call->arguments.size() != function->parameters.size()) {
         throw runtime_error("Invalid argument count: " + call->name);
     }
-    //evaluate arguemtns in caller scope
-    vector<int> arguments;
+
+    //evaluate arguments in caller scope
+    vector<Value> arguments;
+
     for (const auto& argument : call->arguments) {
         arguments.push_back(
             evaluateExpression(argument.get(), callerEnvironment)
         );
     }
+
     //create function scope
     Environment local(binding.definitionScope);
+
     //bind arguments to parameters
     for (size_t i = 0; i < arguments.size(); i++) {
         local.define(function->parameters[i], arguments[i]);
     }
-    //execute funtion body
+
+    //execute function body
     try {
         for (const auto& statement : function->body) {
             executeStatement(statement.get(), local);
@@ -245,6 +379,7 @@ optional<int> Interpreter::callFunction(
     catch (const ReturnSignal& result) {
         return result.value;
     }
+
     //function finished without return
     return nullopt;
 }

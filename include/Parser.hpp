@@ -39,6 +39,8 @@ private:
     std::unique_ptr<Statement> parseFunctionDeclaration(); //function definition
     std::unique_ptr<Statement> parseReturnStatement(); //return statement
     std::unique_ptr<Statement> parseExpressionStatement(); //standalone expression
+    
+    std::optional<ValueType> parseTypeAnnotation(); //parses optional : type
 
 public:
     Parser(const std::vector<Token>& sourceTokens); //creates parser

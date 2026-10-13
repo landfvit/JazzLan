@@ -12,6 +12,7 @@ add_executable(JazzLan
     src/AST.cpp
     src/Interpreter.cpp
     src/Environment.cpp
+    src/Value.cpp
 )
 
 target_include_directories(JazzLan PRIVATE include)

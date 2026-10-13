@@ -1,0 +1,25 @@
+var x = 5;
+var pi: float = 3.14;
+var dog: string = "Jazz";
+var active: bool = true;
+
+var score: int;
+score = 100;
+
+const maxScore = 200;
+
+function add(a, b) {
+    fetch a + b;
+}
+
+print(x);
+print(pi);
+print(dog);
+print(active);
+print(score);
+print(maxScore);
+
+print(add(x, score));
+print(dog + " is a good dog!");
+print(pi * 2.0);
+print(x < score);

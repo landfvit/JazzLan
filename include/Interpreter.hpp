@@ -8,36 +8,34 @@
 
 #include "AST.hpp"
 #include "Environment.hpp"
+#include "Value.hpp"
 
 class Interpreter {
 private:
     Environment global; //global scope
 
-    int evaluateExpression(
+    Value evaluateExpression(
         const Expression* expression,
         const Environment& environment
-    ); //evaluates expression in given scope
+    ); //evaluates expression
 
-    std::optional<int> callFunction(
+    std::optional<Value> callFunction(
         const CallExpression* call,
-        const Environment& environment
+        const Environment& callerEnvironment
     ); //executes function call
 
     void executeStatement(
         const Statement* statement,
         Environment& environment
-    ); //executes one statement
+    ); //executes statement
 
     void executeBlock(
         const std::vector<std::unique_ptr<Statement>>& statements,
         Environment& parentEnvironment
-    ); //executes statements in a new local scope
-
-    //registered functions awaiting call
-    std::unordered_map<std::string, const FunctionDeclaration*> functions;
+    ); //executes block in local scope
 
 public:
-    void executeProgram(const Program& program); //executes whole program
+    void executeProgram(const Program& program); //executes program
 
-    const std::unordered_map<std::string, int>& getVariables() const; //returns global variables
+    const std::unordered_map<std::string, VariableInfo>& getVariables() const;
 };

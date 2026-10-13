@@ -1,7 +1,11 @@
 #pragma once
 
 #include <string>
+#include <optional>
 #include <unordered_map>
+
+#include "Value.hpp"
+#include "VariableInfo.hpp"
 
 struct FunctionDeclaration;
 class Environment;
@@ -14,16 +18,22 @@ struct FunctionBinding {
 
 class Environment {
 private:
-    std::unordered_map<std::string, int> variables; //local variables
+    std::unordered_map<std::string, VariableInfo> variables; //local variables
     std::unordered_map<std::string, FunctionBinding> functions; //local functions
     Environment* parent; //parent scope
 
 public:
-    Environment(Environment* parentEnviroment = nullptr);
+    Environment(Environment* parentEnvironment = nullptr);
 
-    void define(const std::string& name, int value); //create 'x' in current scope
-    int get(const std::string& name) const; //find 'x' in current or parent scope
-    void assign(const std::string& name, int value); //changes 'x' value in nearest scope
+    void define(
+        const std::string& name,
+        std::optional<Value> value,
+        std::optional<ValueType> declaredType = std::nullopt,
+        bool isConst = false
+    );
+
+    Value get(const std::string& name) const;
+    void assign(const std::string& name, const Value& value);
 
     void defineFunction(
         const std::string& name,
@@ -32,5 +42,5 @@ public:
 
     FunctionBinding getFunction(const std::string& name) const;
 
-    const std::unordered_map<std::string, int>& getVariables() const;
+    const std::unordered_map<std::string, VariableInfo>& getVariables() const;
 };

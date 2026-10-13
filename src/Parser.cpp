@@ -46,7 +46,34 @@ unique_ptr<Expression> Parser::parsePrimary() {
         const Token& numberToken = advance();
 
         auto expression = make_unique<NumberExpression>();
-        expression->value = stoi(numberToken.value);
+        expression->value = stoll(numberToken.value);
+
+        return expression;
+    }
+    //float expression
+    if (check(TokenType::FloatNumber)) {
+        const Token& token = advance();
+
+        auto expression = make_unique<FloatExpression>();
+        expression->value = stod(token.value);
+
+        return expression;
+    }
+    //string expression
+    if (check(TokenType::String)) {
+        const Token& token = advance();
+
+        auto expression = make_unique<StringExpression>();
+        expression->value = token.value;
+
+        return expression;
+    }
+    //boolean expression
+    if (check(TokenType::True) || check(TokenType::False)) {
+        const Token& token = advance();
+
+        auto expression = make_unique<BoolExpression>();
+        expression->value = token.type == TokenType::True;
 
         return expression;
     }
@@ -147,23 +174,52 @@ unique_ptr<Expression> Parser::parseExpression() {
     return parseEquality();
 }
 
-//parser: let <identifier> = <expression>;
+//parses variable declaration
 unique_ptr<Statement> Parser::parseVariableDeclaration() {
-    consume(TokenType::Let, "Expected 'let'");
+    bool isConst = check(TokenType::Const);
+
+    //declaration keyword
+    if (
+        check(TokenType::Var) ||
+        check(TokenType::Const) ||
+        check(TokenType::Let)
+    ) {
+        advance();
+    } else {
+        throw runtime_error("Expected variable declaration");
+    }
 
     const Token& nameToken = consume(
-        TokenType:: Identifier,
+        TokenType::Identifier,
         "Expected variable name"
     );
-    consume(TokenType::Equal, "Expected '='");
 
-    auto value = parseExpression();
+    //optional type
+    auto declaredType = parseTypeAnnotation();
+
+    //optional initializer
+    unique_ptr<Expression> value;
+
+    if (check(TokenType::Equal)) {
+        advance();
+        value = parseExpression();
+    }
 
     consume(TokenType::Semicolon, "Expected ';'");
+
+    //check declaration validity
+    if (!declaredType.has_value() && !value) {
+        throw runtime_error("Cannot infer type: " + nameToken.value);
+    }
+    if (isConst && !value) {
+        throw runtime_error("Const requires initialization: " + nameToken.value);
+    }
 
     auto statement = make_unique<VariableDeclaration>();
 
     statement->name = nameToken.value;
+    statement->declaredType = declaredType;
+    statement->isConst = isConst;
     statement->value = std::move(value);
 
     return statement;
@@ -184,7 +240,11 @@ Program Parser::parseProgram() {
 
 //selects correct statement parser
 unique_ptr<Statement> Parser::parseStatement() {
-    if (check(TokenType::Let)) {
+    if (
+        check(TokenType::Var) ||
+        check(TokenType::Const) ||
+        check(TokenType::Let)
+    ) {
         return parseVariableDeclaration();
     }
     if (check(TokenType::Print)) {
@@ -432,4 +492,33 @@ unique_ptr<Statement> Parser::parseExpressionStatement() {
     statement->value = std::move(value);
 
     return statement;
+}
+
+//parses optional type annotation
+optional<ValueType> Parser::parseTypeAnnotation() {
+    if (!check(TokenType::Colon)) {
+        return nullopt;
+    }
+
+    advance();
+
+    const Token& typeToken = consume(
+        TokenType::Identifier,
+        "Expected type name"
+    );
+
+    if (typeToken.value == "int") {
+        return ValueType::Int;
+    }
+    if (typeToken.value == "float") {
+        return ValueType::Float;
+    }
+    if (typeToken.value == "string") {
+        return ValueType::String;
+    }
+    if (typeToken.value == "bool") {
+        return ValueType::Bool;
+    }
+
+    throw runtime_error("Unknown type: " + typeToken.value);
 }

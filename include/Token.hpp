@@ -6,6 +6,8 @@
 enum class TokenType{
     //keywords
     Let,
+    Var,
+    Const,
     Print,
     If,
     Else,
@@ -15,7 +17,10 @@ enum class TokenType{
     //values
     Identifier,
     Number,
+    FloatNumber,
     String,
+    True,
+    False,
     //operators
     Plus,
     Minus,
@@ -38,6 +43,7 @@ enum class TokenType{
     RightBrace,
     Comma,
     Semicolon,
+    Colon,
     
     //end of token stream
     EndOfFile

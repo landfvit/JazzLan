@@ -8,10 +8,16 @@ void printExpressionTree(
     const Expression* expression,
     const string& prefix,
     bool isLast,
-    const unordered_map<string, int>& variables
+    const std::unordered_map<std::string, VariableInfo>& variables
 ) {
     cout << prefix;
     cout << (isLast ? "└── " : "├── ");
+
+    //uninitialized expression
+    if (expression == nullptr) {
+        cout << "Uninitialized" << endl;
+        return;
+    }
 
     //number node
     if (const auto* number =
@@ -78,6 +84,28 @@ void printExpressionTree(
         }
     return;
     }
+    //float node
+    if (const auto* number =
+        dynamic_cast<const FloatExpression*>(expression)) {
+
+        cout << "FloatExpression(" << number->value << ")" << endl;
+        return;
+    }
+    //string node
+    if (const auto* text =
+        dynamic_cast<const StringExpression*>(expression)) {
+
+        cout << "StringExpression(\"" << text->value << "\")" << endl;
+        return;
+    }
+    //boolean node
+    if (const auto* boolean =
+        dynamic_cast<const BoolExpression*>(expression)) {
+
+        cout << "BoolExpression(";
+        cout << (boolean->value ? "true" : "false") << ")" << endl;
+        return;
+    }
 
     cout << "UnknownExpression" << endl;
 }
@@ -85,7 +113,7 @@ void printExpressionTree(
 //prints an expression from its root node
 void printExpression(
     const Expression* expression,
-    const unordered_map<string, int>& variables
+    const std::unordered_map<std::string, VariableInfo>& variables
 ) {
     printExpressionTree(
         expression,
@@ -98,7 +126,7 @@ void printExpression(
 //prints one variable declaration and its expression tree
 void printVariableDeclaration(
     const VariableDeclaration& variable,
-    const unordered_map<string, int>& variables
+    const std::unordered_map<std::string, VariableInfo>& variables
 ) {
     cout << "VariableDeclaration" << endl;
     cout << "├── name: " << variable.name << endl;
@@ -117,7 +145,7 @@ void printStatementTree(
     const Statement* statement,
     const string& prefix,
     bool isLast,
-    const unordered_map<string, int>& variables
+    const std::unordered_map<std::string, VariableInfo>& variables
 ) {
     cout << prefix << (isLast ? "└── " : "├── ");
 
@@ -317,7 +345,7 @@ void printStatementTree(
 //prints the whole program AST
 void printProgram(
     const Program& program,
-    const unordered_map<string, int>& variables
+    const std::unordered_map<std::string, VariableInfo>& variables
 ) {
     cout << "Program" << endl;
 

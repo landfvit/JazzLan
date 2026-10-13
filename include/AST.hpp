@@ -1,5 +1,9 @@
 #pragma once
 
+#include <optional>
+#include "Value.hpp"
+#include "VariableInfo.hpp"
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -10,9 +14,24 @@ struct Expression {
     virtual ~Expression() = default;
 };
 
-//number expression
+//integer expression
 struct NumberExpression : Expression {
-    int value;
+    std::int64_t value;
+};
+
+//float expression
+struct FloatExpression : Expression {
+    double value;
+};
+
+//string expression
+struct StringExpression : Expression {
+    std::string value;
+};
+
+//boolean expression
+struct BoolExpression : Expression {
+    bool value;
 };
 
 //binary expression
@@ -41,6 +60,8 @@ struct Statement {
 //variable declaration
 struct VariableDeclaration : Statement {
     std::string name;
+    std::optional<ValueType> declaredType;
+    bool isConst = false;
     std::unique_ptr<Expression> value;
 };
 
@@ -92,15 +113,15 @@ struct Program {
 //debug printing
 void printExpression(
     const Expression* expression,
-    const std::unordered_map<std::string, int>& variables
+    const std::unordered_map<std::string, VariableInfo>& variables
 );
 
 void printVariableDeclaration(
     const VariableDeclaration& variable,
-    const std::unordered_map<std::string, int>& variables
+    const std::unordered_map<std::string, VariableInfo>& variables
 );
 
 void printProgram(
     const Program& program,
-    const std::unordered_map<std::string, int>& variables
+    const std::unordered_map<std::string, VariableInfo>& variables
 );

@@ -44,6 +44,18 @@ TokenType getWordType(string word) {
     if (word == "return" || word == "fetch") {
         return TokenType::Return;
     }
+    if (word == "var") {
+        return TokenType::Var;
+    }
+    if (word == "const") {
+        return TokenType::Const;
+    }
+    if (word == "true") {
+        return TokenType::True;
+    }
+    if (word == "false") {
+        return TokenType::False;
+    }
     return TokenType::Identifier;
 }
 
@@ -79,15 +91,39 @@ vector<Token> tokenize(string source) {
         // numbers
         //--------
 
-        //collects consecutive digits into a single Number token
+        //numbers
         if (isDigit(source[i])) {
             string number;
-            while (i < source.size() && isDigit(source[i])) { //check for digits
+            bool isFloat = false;
+
+            while (i < source.size() && isDigit(source[i])) {
                 number += source[i];
                 i++;
             }
+
+            //decimal part
+            if (
+                i + 1 < source.size() &&
+                source[i] == '.' &&
+                isDigit(source[i + 1])
+            ) {
+                isFloat = true;
+                number += source[i];
+                i++;
+
+                while (i < source.size() && isDigit(source[i])) {
+                    number += source[i];
+                    i++;
+                }
+            }
+
             i--;
-            tokens.push_back({TokenType::Number, number});
+
+            tokens.push_back({
+                isFloat ? TokenType::FloatNumber : TokenType::Number,
+                number
+            });
+
             continue;
         }
 
@@ -173,6 +209,8 @@ vector<Token> tokenize(string source) {
             tokens.push_back({TokenType::Comma, ","});
         } else if (source[i] == ';') {
             tokens.push_back({TokenType::Semicolon, ";"});
+        } else if (source[i] == ':') {
+            tokens.push_back({TokenType::Colon, ":"});
         }
     }
 
@@ -186,6 +224,8 @@ string tokenTypeToString(TokenType type) {
     switch (type) {
         //keywords
         case TokenType::Let: return "Let";
+        case TokenType::Var: return "Var";
+        case TokenType::Const: return "Const";
         case TokenType::Print: return "Print";
         case TokenType::If: return "If";
         case TokenType::Else: return "Else";
@@ -195,7 +235,10 @@ string tokenTypeToString(TokenType type) {
         //values
         case TokenType::Identifier: return "Identifier";
         case TokenType::Number: return "Number";
+        case TokenType::FloatNumber: return "FloatNumber";
         case TokenType::String: return "String";
+        case TokenType::True: return "True";
+        case TokenType::False: return "False";
         //operators
         case TokenType::Plus: return "Plus";
         case TokenType::Minus: return "Minus";
@@ -218,6 +261,7 @@ string tokenTypeToString(TokenType type) {
         case TokenType::RightBracket: return "RightBracket";
         case TokenType::Comma: return "Comma";
         case TokenType::Semicolon: return "Semicolon";
+        case TokenType::Colon: return "Colon";
         //EOF
         case TokenType::EndOfFile: return "EndOfFile";
     }
