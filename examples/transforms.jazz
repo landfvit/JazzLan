@@ -1,0 +1,35 @@
+function double(value: float): float {
+    fetch 2 * value;
+}
+
+//a target name creates a new container and leaves the source in place
+var values = [1.0, 2.0, 3.0, 4.0];
+values [| double(#) |] doubled;
+print(values);
+print(doubled);
+
+//without a target the transformed contents replace the original contents
+values [| 2 * # |];
+print(values);
+
+//frozen containers support the new-target form
+const point = [3, 5];
+point [| # + 1 |] shifted;
+print(point);
+print(shifted);
+
+//sets keep unique results and dictionaries transform their values
+var unique = <1, 2, 3>;
+unique <| # - # |> zeros;
+print(zeros);
+var scores = {"Jazz": 3, "Lu": 5};
+scores {| # * 10 |} scaled;
+print(scores);
+print(scaled);
+
+//returned nested containers are shared, just like copy() and slices
+var rows = [[1], [2]];
+rows [| #.copy() |] copiedRows;
+copiedRows[0].append(3);
+print(rows);
+print(copiedRows);

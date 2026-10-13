@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <utility>
 
 //base type for all expressions
 struct Expression {
@@ -34,11 +35,45 @@ struct BoolExpression : Expression {
     bool value;
 };
 
+//none expression
+struct NoneExpression : Expression {
+};
+
+//current element inside a transform
+struct PlaceholderExpression : Expression {
+};
+
+//list or set literal
+struct ContainerExpression : Expression {
+    ValueType type;
+    std::vector<std::unique_ptr<Expression>> elements;
+};
+
+//dictionary literal
+struct DictionaryExpression : Expression {
+    std::vector<std::pair<
+        std::unique_ptr<Expression>,
+        std::unique_ptr<Expression>
+    >> entries;
+};
+
+//unary expression
+struct UnaryExpression : Expression {
+    std::string op;
+    std::unique_ptr<Expression> operand;
+};
+
 //binary expression
 struct BinaryExpression : Expression {
     std::unique_ptr<Expression> left;
     std::string op;
     std::unique_ptr<Expression> right;
+};
+
+//chained comparison
+struct ComparisonExpression : Expression {
+    std::vector<std::unique_ptr<Expression>> operands;
+    std::vector<std::string> operators;
 };
 
 //identifier expression
@@ -48,6 +83,27 @@ struct IdentifierExpression : Expression {
 
 //function call
 struct CallExpression : Expression {
+    std::string name;
+    std::vector<std::unique_ptr<Expression>> arguments;
+};
+
+//container element access
+struct IndexExpression : Expression {
+    std::unique_ptr<Expression> object;
+    std::unique_ptr<Expression> index;
+};
+
+//sequence slice with optional bounds
+struct SliceExpression : Expression {
+    std::unique_ptr<Expression> object;
+    std::unique_ptr<Expression> start;
+    std::unique_ptr<Expression> stop;
+    std::unique_ptr<Expression> step;
+};
+
+//method call on a value
+struct MethodCallExpression : Expression {
+    std::unique_ptr<Expression> object;
     std::string name;
     std::vector<std::unique_ptr<Expression>> arguments;
 };
@@ -83,20 +139,42 @@ struct AssignmentStatement : Statement {
     std::unique_ptr<Expression> value;
 };
 
+//container element assignment
+struct IndexAssignmentStatement : Statement {
+    std::unique_ptr<Expression> object;
+    std::unique_ptr<Expression> index;
+    std::unique_ptr<Expression> value;
+};
+
+//transform elements in place or into a new variable
+struct TransformStatement : Statement {
+    ValueType type;
+    std::unique_ptr<Expression> source;
+    std::unique_ptr<Expression> expression;
+    std::optional<std::string> target;
+};
+
 //while statement
 struct WhileStatement : Statement {
     std::unique_ptr<Expression> condition;
     std::vector<std::unique_ptr<Statement>> body;
 };
 
+//function parameter with optional type
+struct FunctionParameter {
+    std::string name;
+    std::optional<ValueType> declaredType;
+};
+
 //function declaration
 struct FunctionDeclaration : Statement {
     std::string name;
-    std::vector<std::string> parameters;
+    std::vector<FunctionParameter> parameters;
+    std::optional<ValueType> returnType;
     std::vector<std::unique_ptr<Statement>> body;
 };
 
-//returns value from function
+//returns from function with optional value
 struct ReturnStatement : Statement {
     std::unique_ptr<Expression> value;
 };

@@ -1,0 +1,25 @@
+function identity(value) {
+    fetch value;
+}
+
+function calculate(a: int, b, c: float): float {
+    fetch a + b + c;
+}
+
+function getEmpty(): none {
+    return none;
+}
+
+function greet(name: string): void {
+    print("Hello " + name);
+    fetch;
+}
+
+var empty: none = getEmpty();
+
+print(empty);
+print(identity(42));
+print(identity("Jazz"));
+print(identity(none));
+print(calculate(2, 3, 0.5));
+greet("Jazz");

@@ -14,6 +14,9 @@ enum class TokenType{
     While,
     Function,
     Return,
+    Void,
+    In,
+    Not,
     //values
     Identifier,
     Number,
@@ -21,11 +24,16 @@ enum class TokenType{
     String,
     True,
     False,
+    None,
+    Placeholder,
     //operators
     Plus,
     Minus,
     Star,
     Slash,
+    Pipe,
+    Ampersand,
+    Caret,
     Equal,
     EqualEqual,
     Bang,
@@ -34,6 +42,12 @@ enum class TokenType{
     LessEqual,
     Greater,
     GreaterEqual,
+    ListTransformStart,
+    ListTransformEnd,
+    SetTransformStart,
+    SetTransformEnd,
+    DictTransformStart,
+    DictTransformEnd,
     //symbols
     LeftParen,
     RightParen,
@@ -44,6 +58,7 @@ enum class TokenType{
     Comma,
     Semicolon,
     Colon,
+    Dot,
     
     //end of token stream
     EndOfFile

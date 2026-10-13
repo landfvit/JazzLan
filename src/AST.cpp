@@ -107,6 +107,131 @@ void printExpressionTree(
         return;
     }
 
+    //none node
+    if (dynamic_cast<const NoneExpression*>(expression)) {
+        cout << "NoneExpression(none)" << endl;
+        return;
+    }
+    //transform placeholder
+    if (dynamic_cast<const PlaceholderExpression*>(expression)) {
+        cout << "PlaceholderExpression(#)" << endl;
+        return;
+    }
+
+    string childPrefix = prefix + (isLast ? "    " : "│   ");
+
+    //container literal
+    if (const auto* container =
+        dynamic_cast<const ContainerExpression*>(expression)) {
+
+        cout << "ContainerExpression(" << valueTypeToString(container->type) << ")" << endl;
+
+        for (size_t i = 0; i < container->elements.size(); i++) {
+            printExpressionTree(
+                container->elements[i].get(),
+                childPrefix,
+                i + 1 == container->elements.size(),
+                variables
+            );
+        }
+        return;
+    }
+    //dictionary literal
+    if (const auto* dictionary =
+        dynamic_cast<const DictionaryExpression*>(expression)) {
+
+        cout << "DictionaryExpression" << endl;
+
+        for (size_t i = 0; i < dictionary->entries.size(); i++) {
+            bool lastEntry = i + 1 == dictionary->entries.size();
+            cout << childPrefix << (lastEntry ? "└── entry:" : "├── entry:") << endl;
+            string entryPrefix = childPrefix + (lastEntry ? "    " : "│   ");
+            printExpressionTree(dictionary->entries[i].first.get(), entryPrefix, false, variables);
+            printExpressionTree(dictionary->entries[i].second.get(), entryPrefix, true, variables);
+        }
+        return;
+    }
+    //unary operator
+    if (const auto* unary =
+        dynamic_cast<const UnaryExpression*>(expression)) {
+
+        cout << "UnaryExpression(" << unary->op << ")" << endl;
+        printExpressionTree(unary->operand.get(), childPrefix, true, variables);
+        return;
+    }
+    //chained comparison
+    if (const auto* comparison =
+        dynamic_cast<const ComparisonExpression*>(expression)) {
+
+        cout << "ComparisonExpression(";
+
+        for (size_t i = 0; i < comparison->operators.size(); i++) {
+            if (i != 0) {
+                cout << ", ";
+            }
+            cout << comparison->operators[i];
+        }
+        cout << ")" << endl;
+
+        for (size_t i = 0; i < comparison->operands.size(); i++) {
+            printExpressionTree(
+                comparison->operands[i].get(),
+                childPrefix,
+                i + 1 == comparison->operands.size(),
+                variables
+            );
+        }
+        return;
+    }
+    //element access
+    if (const auto* index =
+        dynamic_cast<const IndexExpression*>(expression)) {
+
+        cout << "IndexExpression" << endl;
+        printExpressionTree(index->object.get(), childPrefix, false, variables);
+        printExpressionTree(index->index.get(), childPrefix, true, variables);
+        return;
+    }
+    //sequence slice
+    if (const auto* slice =
+        dynamic_cast<const SliceExpression*>(expression)) {
+
+        cout << "SliceExpression" << endl;
+        printExpressionTree(slice->object.get(), childPrefix, false, variables);
+
+        const Expression* bounds[] = {slice->start.get(), slice->stop.get(), slice->step.get()};
+        const char* names[] = {"start", "stop", "step"};
+
+        for (size_t i = 0; i < 3; i++) {
+            bool lastBound = i == 2;
+            cout << childPrefix << (lastBound ? "└── " : "├── ") << names[i] << ":";
+
+            if (bounds[i] == nullptr) {
+                cout << " default" << endl;
+            } else {
+                cout << endl;
+                printExpressionTree(
+                    bounds[i], childPrefix + (lastBound ? "    " : "│   "), true, variables
+                );
+            }
+        }
+        return;
+    }
+    //method call
+    if (const auto* call =
+        dynamic_cast<const MethodCallExpression*>(expression)) {
+
+        cout << "MethodCallExpression(" << call->name << ")" << endl;
+        printExpressionTree(call->object.get(), childPrefix, call->arguments.empty(), variables);
+
+        for (size_t i = 0; i < call->arguments.size(); i++) {
+            printExpressionTree(
+                call->arguments[i].get(), childPrefix, i + 1 == call->arguments.size(), variables
+            );
+        }
+        return;
+    }
+
     cout << "UnknownExpression" << endl;
 }
 
@@ -244,6 +369,34 @@ void printStatementTree(
 
         return;
     }
+    //container element assignment
+    if (const auto* assignment =
+        dynamic_cast<const IndexAssignmentStatement*>(statement)) {
+
+        cout << "IndexAssignmentStatement" << endl;
+        printExpressionTree(assignment->object.get(), childPrefix, false, variables);
+        printExpressionTree(assignment->index.get(), childPrefix, false, variables);
+        printExpressionTree(assignment->value.get(), childPrefix, true, variables);
+        return;
+    }
+    //container transform
+    if (const auto* transform =
+        dynamic_cast<const TransformStatement*>(statement)) {
+
+        cout << "TransformStatement(" << valueTypeToString(transform->type) << ")" << endl;
+        cout << childPrefix << "├── source:" << endl;
+        printExpressionTree(transform->source.get(), childPrefix + "│   ", true, variables);
+        cout << childPrefix << "├── expression:" << endl;
+        printExpressionTree(transform->expression.get(), childPrefix + "│   ", true, variables);
+        cout << childPrefix << "└── target: ";
+
+        if (transform->target.has_value()) {
+            cout << transform->target.value() << endl;
+        } else {
+            cout << "in place" << endl;
+        }
+        return;
+    }
     //while loop
     if (const auto* loop =
         dynamic_cast<const WhileStatement*>(statement)) {
@@ -274,11 +427,17 @@ void printStatementTree(
 
         return;
     }
-        //return statement
+    //return statement
     if (const auto* returnStatement =
         dynamic_cast<const ReturnStatement*>(statement)) {
 
         cout << "ReturnStatement" << endl;
+
+        if (!returnStatement->value) {
+            cout << childPrefix << "└── no value" << endl;
+            return;
+        }
+
         cout << childPrefix << "└── value:" << endl;
 
         printExpressionTree(
@@ -301,7 +460,12 @@ void printStatementTree(
         cout << childPrefix << "├── parameters: [";
 
         for (size_t i = 0; i < function->parameters.size(); i++) {
-            cout << function->parameters[i];
+            const auto& parameter = function->parameters[i];
+            cout << parameter.name;
+
+            if (parameter.declaredType.has_value()) {
+                cout << ": " << valueTypeToString(parameter.declaredType.value());
+            }
 
             if (i + 1 < function->parameters.size()) {
                 cout << ", ";
@@ -309,6 +473,13 @@ void printStatementTree(
         }
 
         cout << "]" << endl;
+
+        //optional return type
+        if (function->returnType.has_value()) {
+            cout << childPrefix << "├── returnType: ";
+            cout << valueTypeToString(function->returnType.value()) << endl;
+        }
+
         cout << childPrefix << "└── body:" << endl;
 
         //function body

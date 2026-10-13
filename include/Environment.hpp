@@ -41,6 +41,7 @@ public:
     );
 
     FunctionBinding getFunction(const std::string& name) const;
+    bool hasFunction(const std::string& name) const;
 
     const std::unordered_map<std::string, VariableInfo>& getVariables() const;
 };

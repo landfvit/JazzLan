@@ -1,6 +1,7 @@
 #include "Parser.hpp"
 
 #include <stdexcept>
+#include <limits>
 #include <utility>
 #include <unordered_set>
 
@@ -12,6 +13,9 @@ Parser::Parser(const vector<Token>& sourceTokens)
 
 //returns current token wothout moving
 const Token& Parser::look() { 
+    if (current >= tokens.size()) {
+        throw runtime_error("Unexpected end of input");
+    }
     return tokens[current];
 }
 
@@ -39,7 +43,34 @@ const Token& Parser::consume(TokenType type, const string& message) {
 //parser functions
 //----------------
 
-//parses numbers, identifiers, function calls and ()
+//parses an expression inside its own delimiters
+unique_ptr<Expression> Parser::parseDelimitedExpression(bool setElement) {
+    bool previous = stopAtSetEnd;
+    stopAtSetEnd = setElement;
+    auto expression = parseExpression();
+    stopAtSetEnd = previous;
+    return expression;
+}
+
+//parses call arguments with an optional trailing comma
+vector<unique_ptr<Expression>> Parser::parseArguments() {
+    consume(TokenType::LeftParen, "Expected '('");
+    vector<unique_ptr<Expression>> arguments;
+
+    while (!check(TokenType::RightParen)) {
+        arguments.push_back(parseDelimitedExpression());
+
+        if (!check(TokenType::Comma)) {
+            break;
+        }
+        advance();
+    }
+
+    consume(TokenType::RightParen, "Expected ')'");
+    return arguments;
+}
+
+//parses values, literals, function calls and grouping
 unique_ptr<Expression> Parser::parsePrimary() {
     //number expression
     if (check(TokenType::Number)) {
@@ -77,33 +108,68 @@ unique_ptr<Expression> Parser::parsePrimary() {
 
         return expression;
     }
+    //none expression
+    if (check(TokenType::None)) {
+        advance();
+        return make_unique<NoneExpression>();
+    }
+    //placeholder is available only in a transform expression
+    if (check(TokenType::Placeholder)) {
+        if (!allowPlaceholder) {
+            throw runtime_error("Placeholder '#' is only allowed inside a transform");
+        }
+        advance();
+        return make_unique<PlaceholderExpression>();
+    }
+    //list or set literal
+    if (check(TokenType::LeftBracket) || check(TokenType::Less)) {
+        bool isSet = check(TokenType::Less);
+        advance();
+
+        auto expression = make_unique<ContainerExpression>();
+        expression->type = isSet ? ValueType::Set : ValueType::List;
+        TokenType closing = isSet ? TokenType::Greater : TokenType::RightBracket;
+
+        while (!check(closing)) {
+            expression->elements.push_back(parseDelimitedExpression(isSet));
+
+            if (!check(TokenType::Comma)) {
+                break;
+            }
+            advance();
+        }
+
+        consume(closing, isSet ? "Expected '>'" : "Expected ']'");
+        return expression;
+    }
+    //dictionary literal
+    if (check(TokenType::LeftBrace)) {
+        advance();
+        auto expression = make_unique<DictionaryExpression>();
+
+        while (!check(TokenType::RightBrace)) {
+            auto key = parseDelimitedExpression();
+            consume(TokenType::Colon, "Expected ':' between dictionary key and value");
+            auto value = parseDelimitedExpression();
+            expression->entries.emplace_back(std::move(key), std::move(value));
+
+            if (!check(TokenType::Comma)) {
+                break;
+            }
+            advance();
+        }
+
+        consume(TokenType::RightBrace, "Expected '}'");
+        return expression;
+    }
     //identifier or function call
     if (check(TokenType::Identifier)) {
         const Token& identifierToken = advance();
         //function call
         if (check(TokenType::LeftParen)) {
-            advance();
-
             auto expression = make_unique<CallExpression>();
             expression->name = identifierToken.value;
-
-            //parse arguments
-            if (!check(TokenType::RightParen)) {
-                do {
-                    expression->arguments.push_back(
-                        parseExpression()
-                    );
-
-                    if (!check(TokenType::Comma)) {
-                        break;
-                    }
-
-                    advance();
-                } while (true);
-            }
-
-            consume(TokenType::RightParen, "Expected ')'");
-
+            expression->arguments = parseArguments();
             return expression;
         }
         //ordinary identifier
@@ -115,26 +181,104 @@ unique_ptr<Expression> Parser::parsePrimary() {
     //parenthesized expression
     if (check(TokenType::LeftParen)) {
         advance();
-
-        auto expression = parseExpression();
-
+        auto expression = parseDelimitedExpression();
         consume(TokenType::RightParen, "Expected ')'");
-
         return expression;
     }
     throw runtime_error("Expected expression");
 }
 
+//parses chained indexing, slicing and method calls
+unique_ptr<Expression> Parser::parsePostfix() {
+    auto object = parsePrimary();
+
+    while (check(TokenType::LeftBracket) || check(TokenType::Dot)) {
+        if (check(TokenType::Dot)) {
+            advance();
+            const Token& name = consume(TokenType::Identifier, "Expected method name");
+            auto call = make_unique<MethodCallExpression>();
+            call->object = std::move(object);
+            call->name = name.value;
+            call->arguments = parseArguments();
+            object = std::move(call);
+            continue;
+        }
+
+        advance();
+        unique_ptr<Expression> start;
+
+        if (!check(TokenType::Colon)) {
+            start = parseDelimitedExpression();
+        }
+
+        if (!check(TokenType::Colon)) {
+            consume(TokenType::RightBracket, "Expected ']'");
+            auto index = make_unique<IndexExpression>();
+            index->object = std::move(object);
+            index->index = std::move(start);
+            object = std::move(index);
+            continue;
+        }
+
+        advance();
+        auto slice = make_unique<SliceExpression>();
+        slice->object = std::move(object);
+        slice->start = std::move(start);
+
+        if (!check(TokenType::Colon) && !check(TokenType::RightBracket)) {
+            slice->stop = parseDelimitedExpression();
+        }
+        if (check(TokenType::Colon)) {
+            advance();
+
+            if (!check(TokenType::RightBracket)) {
+                slice->step = parseDelimitedExpression();
+            }
+        }
+
+        consume(TokenType::RightBracket, "Expected ']'");
+        object = std::move(slice);
+    }
+
+    return object;
+}
+
+//parses unary numeric operators
+unique_ptr<Expression> Parser::parseUnary() {
+    //the minimum integer has no positive int64 counterpart
+    if (
+        check(TokenType::Minus) &&
+        current + 1 < tokens.size() &&
+        tokens[current + 1].type == TokenType::Number &&
+        stoll("-" + tokens[current + 1].value) == numeric_limits<int64_t>::min()
+    ) {
+        advance();
+        advance();
+        auto expression = make_unique<NumberExpression>();
+        expression->value = numeric_limits<int64_t>::min();
+        return expression;
+    }
+
+    if (check(TokenType::Plus) || check(TokenType::Minus)) {
+        auto expression = make_unique<UnaryExpression>();
+        expression->op = advance().value;
+        expression->operand = parseUnary();
+        return expression;
+    }
+
+    return parsePostfix();
+}
+
 //parser * and / before lower precedence operators
 unique_ptr<Expression> Parser::parseMult() {
-    auto left = parsePrimary();
+    auto left = parseUnary();
 
     while (
         check(TokenType::Star) ||
         check(TokenType::Slash)
     ) {
         const Token& operatorToken = advance();
-        auto right = parsePrimary();
+        auto right = parseUnary();
         auto expression = make_unique<BinaryExpression>();
 
         expression->left = std::move(left);
@@ -171,7 +315,7 @@ unique_ptr<Expression> Parser::parseAdd() {
 
 //entry point for expression parsing -> lowest precedence operation
 unique_ptr<Expression> Parser::parseExpression() {
-    return parseEquality();
+    return parseComparison();
 }
 
 //parses variable declaration
@@ -262,7 +406,7 @@ unique_ptr<Statement> Parser::parseStatement() {
     if (check(TokenType::Return)) {
         return parseReturnStatement();
     }
-    //standalone expression
+    //simple variable assignment
     if (check(TokenType::Identifier)) {
         if (
             current + 1 < tokens.size() &&
@@ -270,10 +414,9 @@ unique_ptr<Statement> Parser::parseStatement() {
         ) {
             return parseAssignmentStatement();
         }
-        return parseExpressionStatement();
     }
 
-    throw runtime_error("Expected statement");
+    return parseExpressionStatement();
 }
 
 //parser Print(...)
@@ -293,52 +436,89 @@ unique_ptr<Statement> Parser::parsePrintStatement() {
     return statement;
 }
 
-//parses comparison operators
-unique_ptr<Expression> Parser::parseComparison() {
+//parses set intersection
+unique_ptr<Expression> Parser::parseSetAnd() {
     auto left = parseAdd();
 
-    while (
-        check(TokenType::Less) ||
-        check(TokenType::LessEqual) ||
-        check(TokenType::Greater) ||
-        check(TokenType::GreaterEqual) 
-    ) {
-        const Token& operatorToken = advance();
-        auto right = parseAdd();
-
+    while (check(TokenType::Ampersand)) {
         auto expression = make_unique<BinaryExpression>();
-
         expression->left = std::move(left);
-        expression->op = operatorToken.value;
-        expression->right = std::move(right);
-
+        expression->op = advance().value;
+        expression->right = parseAdd();
         left = std::move(expression);
     }
 
     return left;
 }
 
-//parser == and != operators
-unique_ptr<Expression> Parser::parseEquality() {
-    auto left = parseComparison();
+//parses set symmetric difference
+unique_ptr<Expression> Parser::parseSetXor() {
+    auto left = parseSetAnd();
 
-    while (
-        check(TokenType::EqualEqual) ||
-        check(TokenType::BangEqual)
-    ) {
-        const Token& operatorToken = advance();
-        auto right = parseComparison();
-
+    while (check(TokenType::Caret)) {
         auto expression = make_unique<BinaryExpression>();
-
         expression->left = std::move(left);
-        expression->op = operatorToken.value;
-        expression->right = std::move(right);
-
+        expression->op = advance().value;
+        expression->right = parseSetAnd();
         left = std::move(expression);
     }
 
     return left;
+}
+
+//parses set union
+unique_ptr<Expression> Parser::parseSetOr() {
+    auto left = parseSetXor();
+
+    while (check(TokenType::Pipe)) {
+        auto expression = make_unique<BinaryExpression>();
+        expression->left = std::move(left);
+        expression->op = advance().value;
+        expression->right = parseSetXor();
+        left = std::move(expression);
+    }
+
+    return left;
+}
+
+//parses comparisons and membership in one chain
+unique_ptr<Expression> Parser::parseComparison() {
+    auto chain = make_unique<ComparisonExpression>();
+    chain->operands.push_back(parseSetOr());
+
+    while (
+        check(TokenType::Less) ||
+        check(TokenType::LessEqual) ||
+        (check(TokenType::Greater) && !stopAtSetEnd) ||
+        check(TokenType::GreaterEqual) ||
+        check(TokenType::EqualEqual) ||
+        check(TokenType::BangEqual) ||
+        check(TokenType::In) ||
+        check(TokenType::Not)
+    ) {
+        string op = advance().value;
+
+        if (op == "not") {
+            consume(TokenType::In, "Expected 'in' after 'not'");
+            op = "not in";
+        }
+
+        chain->operators.push_back(op);
+        chain->operands.push_back(parseSetOr());
+    }
+
+    if (chain->operators.empty()) {
+        return std::move(chain->operands[0]);
+    }
+    if (chain->operators.size() == 1) {
+        auto expression = make_unique<BinaryExpression>();
+        expression->left = std::move(chain->operands[0]);
+        expression->op = chain->operators[0];
+        expression->right = std::move(chain->operands[1]);
+        return expression;
+    }
+
+    return chain;
 }
 
 //parses a block of statement
@@ -436,7 +616,7 @@ unique_ptr<Statement> Parser::parseFunctionDeclaration() {
 
     consume(TokenType::LeftParen, "Expected '('");
 
-    vector<string> parameters;
+    vector<FunctionParameter> parameters;
     unordered_set<string> usedParameters;
     //parse function parameters
     if (!check(TokenType::RightParen)) {
@@ -451,7 +631,8 @@ unique_ptr<Statement> Parser::parseFunctionDeclaration() {
                     "Duplicate parameter: " + parameter.value
                 );
             }
-            parameters.push_back(parameter.value);
+            auto declaredType = parseTypeAnnotation();
+            parameters.push_back({parameter.value, declaredType});
             if (!check(TokenType::Comma)) {
                 break;
             }
@@ -460,11 +641,13 @@ unique_ptr<Statement> Parser::parseFunctionDeclaration() {
     }
 
     consume(TokenType::RightParen, "Expected ')'");
+    auto returnType = parseTypeAnnotation(true);
     auto body = parseBlock();
     auto statement = make_unique<FunctionDeclaration>();
 
     statement->name = nameToken.value;
     statement->parameters = std::move(parameters);
+    statement->returnType = returnType;
     statement->body = std::move(body);
 
     return statement;
@@ -474,7 +657,11 @@ unique_ptr<Statement> Parser::parseFunctionDeclaration() {
 unique_ptr<Statement> Parser::parseReturnStatement() {
     consume(TokenType::Return, "Expected 'return'");
 
-    auto value = parseExpression();
+    unique_ptr<Expression> value;
+
+    if (!check(TokenType::Semicolon)) {
+        value = parseExpression();
+    }
 
     consume(TokenType::Semicolon, "Expected ';'");
 
@@ -486,6 +673,77 @@ unique_ptr<Statement> Parser::parseReturnStatement() {
 //parses standalone expression
 unique_ptr<Statement> Parser::parseExpressionStatement() {
     auto value = parseExpression();
+
+    //transform into the same container or a new variable
+    if (
+        check(TokenType::ListTransformStart) ||
+        check(TokenType::SetTransformStart) ||
+        check(TokenType::DictTransformStart)
+    ) {
+        auto statement = make_unique<TransformStatement>();
+        TokenType closing;
+        string closingValue;
+
+        switch (advance().type) {
+            case TokenType::ListTransformStart:
+                statement->type = ValueType::List;
+                closing = TokenType::ListTransformEnd;
+                closingValue = "|]";
+                break;
+            case TokenType::SetTransformStart:
+                statement->type = ValueType::Set;
+                closing = TokenType::SetTransformEnd;
+                closingValue = "|>";
+                break;
+            case TokenType::DictTransformStart:
+                statement->type = ValueType::Dict;
+                closing = TokenType::DictTransformEnd;
+                closingValue = "|}";
+                break;
+            default:
+                throw runtime_error("Expected transform delimiter");
+        }
+
+        bool previous = allowPlaceholder;
+        allowPlaceholder = true;
+        auto expression = parseExpression();
+        allowPlaceholder = previous;
+        consume(closing, "Expected '" + closingValue + "' after transform expression");
+
+        statement->source = std::move(value);
+        statement->expression = std::move(expression);
+
+        if (check(TokenType::Identifier)) {
+            statement->target = advance().value;
+        }
+
+        consume(TokenType::Semicolon, "Expected ';'");
+        return statement;
+    }
+
+    //assignment to an indexed element
+    if (check(TokenType::Equal)) {
+        advance();
+        auto assignedValue = parseExpression();
+        consume(TokenType::Semicolon, "Expected ';'");
+
+        if (auto* index = dynamic_cast<IndexExpression*>(value.get())) {
+            auto statement = make_unique<IndexAssignmentStatement>();
+            statement->object = std::move(index->object);
+            statement->index = std::move(index->index);
+            statement->value = std::move(assignedValue);
+            return statement;
+        }
+        if (const auto* identifier = dynamic_cast<const IdentifierExpression*>(value.get())) {
+            auto statement = make_unique<AssignmentStatement>();
+            statement->name = identifier->name;
+            statement->value = std::move(assignedValue);
+            return statement;
+        }
+
+        throw runtime_error("Invalid assignment target");
+    }
+
     consume(TokenType::Semicolon, "Expected ';'");
 
     auto statement = make_unique<ExpressionStatement>();
@@ -495,12 +753,24 @@ unique_ptr<Statement> Parser::parseExpressionStatement() {
 }
 
 //parses optional type annotation
-optional<ValueType> Parser::parseTypeAnnotation() {
+optional<ValueType> Parser::parseTypeAnnotation(bool allowVoid) {
     if (!check(TokenType::Colon)) {
         return nullopt;
     }
 
     advance();
+
+    if (check(TokenType::None)) {
+        advance();
+        return ValueType::None;
+    }
+    if (check(TokenType::Void)) {
+        if (!allowVoid) {
+            throw runtime_error("Void is only allowed as a function return type");
+        }
+        advance();
+        return ValueType::Void;
+    }
 
     const Token& typeToken = consume(
         TokenType::Identifier,
@@ -518,6 +788,15 @@ optional<ValueType> Parser::parseTypeAnnotation() {
     }
     if (typeToken.value == "bool") {
         return ValueType::Bool;
+    }
+    if (typeToken.value == "list") {
+        return ValueType::List;
+    }
+    if (typeToken.value == "set") {
+        return ValueType::Set;
+    }
+    if (typeToken.value == "dict") {
+        return ValueType::Dict;
     }
 
     throw runtime_error("Unknown type: " + typeToken.value);

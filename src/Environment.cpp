@@ -43,12 +43,22 @@ void Environment::define(
         throw runtime_error("Cannot infer type: " + name);
     }
 
+    //void has no runtime value
+    if (type == ValueType::Void) {
+        throw runtime_error("Void is only allowed as a function return type");
+    }
+
     //check initial value type
     if (
         value.has_value() &&
         getValueType(value.value()) != type
     ) {
         throw runtime_error("Type mismatch: " + name);
+    }
+
+    //const freezes shared contents through every alias
+    if (isConst) {
+        freezeValue(value.value());
     }
 
     variables.emplace(
@@ -129,6 +139,14 @@ FunctionBinding Environment::getFunction(const string& name) const {
         return parent->getFunction(name);
     }
     throw runtime_error("Undefined function: " + name);
+}
+
+//checks whether a user function shadows a builtin
+bool Environment::hasFunction(const string& name) const {
+    if (functions.contains(name)) {
+        return true;
+    }
+    return parent != nullptr && parent->hasFunction(name);
 }
 
 //returns variables from current scope

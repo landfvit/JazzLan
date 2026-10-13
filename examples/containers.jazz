@@ -1,0 +1,36 @@
+//lists hold mixed values and support indexing, slices and methods
+var items: list = [1, "Jazz", none];
+items.append(true);
+print(items);
+print(items[-1]);
+print(items[1:3]);
+
+//const makes this list immutable
+const point: list = [10, 20];
+print(point);
+
+//sets use angle brackets and remove equal values
+print(<1>);
+var unique: set = <1, 1.0, true, 0, false>;
+print(len(unique));
+print(unique == <0, 1>);
+print(1 == 1.0 == true);
+print(0 == false);
+
+//dictionaries preserve key insertion order
+var dog: dict = {"name": "Jazz", "scores": [3, 5]};
+dog["scores"].append(8);
+print(dog);
+print("name" in dog);
+
+//const freezes nested containers and every existing alias
+var scores = dog["scores"];
+const fixed = dog;
+print(scores);
+//scores.append(10); would fail because the shared list is frozen
+
+//copies have new outer storage and share their nested values
+var copy = scores.copy();
+copy.append(10);
+print(copy);
+print(scores);

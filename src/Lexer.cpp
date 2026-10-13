@@ -1,5 +1,7 @@
 #include "Lexer.hpp"
 
+#include <optional>
+
 using namespace std;
 
 //returns true if char is a digit from 0 to 9
@@ -44,6 +46,15 @@ TokenType getWordType(string word) {
     if (word == "return" || word == "fetch") {
         return TokenType::Return;
     }
+    if (word == "void") {
+        return TokenType::Void;
+    }
+    if (word == "in") {
+        return TokenType::In;
+    }
+    if (word == "not") {
+        return TokenType::Not;
+    }
     if (word == "var") {
         return TokenType::Var;
     }
@@ -55,6 +66,9 @@ TokenType getWordType(string word) {
     }
     if (word == "false") {
         return TokenType::False;
+    }
+    if (word == "none") {
+        return TokenType::None;
     }
     return TokenType::Identifier;
 }
@@ -147,6 +161,31 @@ vector<Token> tokenize(string source) {
         // operators
         //----------
 
+        //transform delimiters take priority over single symbols
+        if (i + 1 < source.size()) {
+            optional<TokenType> transform;
+
+            if (source[i + 1] == '|') {
+                switch (source[i]) {
+                    case '[': transform = TokenType::ListTransformStart; break;
+                    case '<': transform = TokenType::SetTransformStart; break;
+                    case '{': transform = TokenType::DictTransformStart; break;
+                }
+            } else if (source[i] == '|') {
+                switch (source[i + 1]) {
+                    case ']': transform = TokenType::ListTransformEnd; break;
+                    case '>': transform = TokenType::SetTransformEnd; break;
+                    case '}': transform = TokenType::DictTransformEnd; break;
+                }
+            }
+
+            if (transform.has_value()) {
+                tokens.push_back({transform.value(), source.substr(i, 2)});
+                i++;
+                continue;
+            }
+        }
+
         //single char operators
         if (source[i] == '+') {
             tokens.push_back({TokenType::Plus, "+"});
@@ -155,7 +194,20 @@ vector<Token> tokenize(string source) {
         } else if (source[i] == '*') {
             tokens.push_back({TokenType::Star, "*"});
         } else if (source[i] == '/') {
+            //skip line comments
+            if (i + 1 < source.size() && source[i + 1] == '/') {
+                while (i < source.size() && source[i] != '\n') {
+                    i++;
+                }
+                continue;
+            }
             tokens.push_back({TokenType::Slash, "/"});
+        } else if (source[i] == '|') {
+            tokens.push_back({TokenType::Pipe, "|"});
+        } else if (source[i] == '&') {
+            tokens.push_back({TokenType::Ampersand, "&"});
+        } else if (source[i] == '^') {
+            tokens.push_back({TokenType::Caret, "^"});
 
         //double char operators
         } else if (source[i] == '=') {
@@ -180,7 +232,11 @@ vector<Token> tokenize(string source) {
                 tokens.push_back({TokenType::Less, "<"});
             }
         } else if (source[i] == '>') {
-            if (i+1 < source.size() && source[i+1] == '=') {
+            //a set closing angle may be followed by equality
+            if (
+                i + 1 < source.size() && source[i + 1] == '=' &&
+                !(i + 2 < source.size() && source[i + 2] == '=')
+            ) {
                 tokens.push_back({TokenType::GreaterEqual, ">="});
                 i++;
             } else {
@@ -211,6 +267,10 @@ vector<Token> tokenize(string source) {
             tokens.push_back({TokenType::Semicolon, ";"});
         } else if (source[i] == ':') {
             tokens.push_back({TokenType::Colon, ":"});
+        } else if (source[i] == '.') {
+            tokens.push_back({TokenType::Dot, "."});
+        } else if (source[i] == '#') {
+            tokens.push_back({TokenType::Placeholder, "#"});
         }
     }
 
@@ -232,6 +292,9 @@ string tokenTypeToString(TokenType type) {
         case TokenType::While: return "While";
         case TokenType::Function: return "Function";
         case TokenType::Return: return "Return";
+        case TokenType::Void: return "Void";
+        case TokenType::In: return "In";
+        case TokenType::Not: return "Not";
         //values
         case TokenType::Identifier: return "Identifier";
         case TokenType::Number: return "Number";
@@ -239,11 +302,16 @@ string tokenTypeToString(TokenType type) {
         case TokenType::String: return "String";
         case TokenType::True: return "True";
         case TokenType::False: return "False";
+        case TokenType::None: return "None";
+        case TokenType::Placeholder: return "Placeholder";
         //operators
         case TokenType::Plus: return "Plus";
         case TokenType::Minus: return "Minus";
         case TokenType::Star: return "Star";
         case TokenType::Slash: return "Slash";
+        case TokenType::Pipe: return "Pipe";
+        case TokenType::Ampersand: return "Ampersand";
+        case TokenType::Caret: return "Caret";
         case TokenType::Equal: return "Equal";
         case TokenType::EqualEqual: return "EqualEqual";
         case TokenType::Bang: return "Bang";
@@ -252,6 +320,12 @@ string tokenTypeToString(TokenType type) {
         case TokenType::LessEqual: return "LessEqual";
         case TokenType::Greater: return "Greater";
         case TokenType::GreaterEqual: return "GreaterEqual";
+        case TokenType::ListTransformStart: return "ListTransformStart";
+        case TokenType::ListTransformEnd: return "ListTransformEnd";
+        case TokenType::SetTransformStart: return "SetTransformStart";
+        case TokenType::SetTransformEnd: return "SetTransformEnd";
+        case TokenType::DictTransformStart: return "DictTransformStart";
+        case TokenType::DictTransformEnd: return "DictTransformEnd";
         //symbols
         case TokenType::LeftParen: return "LeftParen";
         case TokenType::RightParen: return "RightParen";
@@ -262,9 +336,9 @@ string tokenTypeToString(TokenType type) {
         case TokenType::Comma: return "Comma";
         case TokenType::Semicolon: return "Semicolon";
         case TokenType::Colon: return "Colon";
+        case TokenType::Dot: return "Dot";
         //EOF
         case TokenType::EndOfFile: return "EndOfFile";
     }
     return "Unknown";
 }
-

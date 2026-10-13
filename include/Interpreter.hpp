@@ -9,10 +9,18 @@
 #include "AST.hpp"
 #include "Environment.hpp"
 #include "Value.hpp"
+#include "Containers.hpp"
 
 class Interpreter {
 private:
     Environment global; //global scope
+    ContainerHeap containers; //shared container lifetime
+
+    Value evaluateBinary(
+        const Value& left,
+        const std::string& op,
+        const Value& right
+    ); //evaluates operators on scalar and container values
 
     Value evaluateExpression(
         const Expression* expression,
