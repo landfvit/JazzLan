@@ -14,6 +14,7 @@ private:
     size_t current = 0;               //current token index
     bool stopAtSetEnd = false;        //closing angle belongs to current set
     bool allowPlaceholder = false;   //current expression belongs to a transform
+    size_t loopDepth = 0;            //loops inside the current function
 
     const Token& look();              //returns current token
     const Token& advance();           //returns token and moves forward
@@ -43,6 +44,8 @@ private:
     std::unique_ptr<Statement> parseIfStatement(); //if/else ...
     std::unique_ptr<Statement> parseAssignmentStatement(); //assigns variable value
     std::unique_ptr<Statement> parseWhileStatement(); //while loop
+    std::unique_ptr<Statement> parseForStatement(); //for loop
+    std::unique_ptr<Statement> parseLoopControlStatement(); //break or continue
     std::unique_ptr<Statement> parseVariableDeclaration(); //let x = ...;
     std::unique_ptr<Statement> parseFunctionDeclaration(); //function definition
     std::unique_ptr<Statement> parseReturnStatement(); //return statement

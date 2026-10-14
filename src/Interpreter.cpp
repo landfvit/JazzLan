@@ -12,6 +12,9 @@ using namespace std;
 struct ReturnSignal {
     optional<Value> value;
 };
+//signals control flow in the nearest loop
+struct BreakSignal {};
+struct ContinueSignal {};
 //checks numeric values
 static bool isNumeric(const Value& value) {
     return holds_alternative<int64_t>(value) || holds_alternative<double>(value);
@@ -285,6 +288,12 @@ void Interpreter::executeProgram(const Program& program) {
     catch (const ReturnSignal&) {
         throw runtime_error("'return' or 'fetch' outside function");
     }
+    catch (const BreakSignal&) {
+        throw runtime_error("Break is only allowed inside a loop");
+    }
+    catch (const ContinueSignal&) {
+        throw runtime_error("Continue is only allowed inside a loop");
+    }
 }
 //returns global variables
 const unordered_map<string, VariableInfo>& Interpreter::getVariables() const {
@@ -399,6 +408,29 @@ void Interpreter::executeStatement(
         }
         return;
     }
+    //for loop evaluates its source once and visits the original elements
+    if (const auto* loop = dynamic_cast<const ForStatement*>(statement)) {
+        Value source = evaluateExpression(loop->iterable.get(), environment);
+        auto elements = iterableValues(source);
+
+        for (const auto& element : elements) {
+            Environment local(&environment);
+            local.define(loop->name, element, loop->declaredType);
+
+            try {
+                for (const auto& bodyStatement : loop->body) {
+                    executeStatement(bodyStatement.get(), local);
+                }
+            }
+            catch (const BreakSignal&) {
+                break;
+            }
+            catch (const ContinueSignal&) {
+                continue;
+            }
+        }
+        return;
+    }
     //while loop
     if (const auto* loop =
         dynamic_cast<const WhileStatement*>(statement)) {
@@ -406,9 +438,24 @@ void Interpreter::executeStatement(
         while (isTruthy(
             evaluateExpression(loop->condition.get(), environment)
         )) {
-            executeBlock(loop->body, environment);
+            try {
+                executeBlock(loop->body, environment);
+            }
+            catch (const BreakSignal&) {
+                break;
+            }
+            catch (const ContinueSignal&) {
+                continue;
+            }
         }
         return;
+    }
+    //loop control statements
+    if (dynamic_cast<const BreakStatement*>(statement)) {
+        throw BreakSignal{};
+    }
+    if (dynamic_cast<const ContinueStatement*>(statement)) {
+        throw ContinueSignal{};
     }
     //function declaration
     if (const auto* function =
@@ -465,9 +512,9 @@ optional<Value> Interpreter::callFunction(
     const CallExpression* call,
     const Environment& callerEnvironment
 ) {
-    //user functions may shadow container constructors
+    //user functions may shadow builtins
     bool builtin = call->name == "list" || call->name == "set" ||
-                   call->name == "dict" || call->name == "len";
+                   call->name == "dict" || call->name == "len" || call->name == "range";
     if (builtin && !callerEnvironment.hasFunction(call->name)) {
         vector<Value> arguments;
         for (const auto& argument : call->arguments) {
@@ -527,6 +574,12 @@ optional<Value> Interpreter::callFunction(
     }
     catch (const ReturnSignal& signal) {
         result = signal.value;
+    }
+    catch (const BreakSignal&) {
+        throw runtime_error("Break is only allowed inside a loop");
+    }
+    catch (const ContinueSignal&) {
+        throw runtime_error("Continue is only allowed inside a loop");
     }
 
     //check optional return type

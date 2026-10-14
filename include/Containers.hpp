@@ -44,7 +44,7 @@ public:
     }
 };
 
-//constructs a container or evaluates len
+//constructs a container or range, or evaluates len
 Value callContainerFunction(
     const std::string& name,
     const std::vector<Value>& arguments,

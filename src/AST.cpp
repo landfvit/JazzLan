@@ -427,6 +427,41 @@ void printStatementTree(
 
         return;
     }
+    //for loop
+    if (const auto* loop =
+        dynamic_cast<const ForStatement*>(statement)) {
+
+        cout << "ForStatement" << endl;
+        cout << childPrefix << "├── name: " << loop->name << endl;
+
+        if (loop->declaredType.has_value()) {
+            cout << childPrefix << "├── type: ";
+            cout << valueTypeToString(loop->declaredType.value()) << endl;
+        }
+
+        cout << childPrefix << "├── iterable:" << endl;
+        printExpressionTree(loop->iterable.get(), childPrefix + "│   ", true, variables);
+        cout << childPrefix << "└── body:" << endl;
+
+        for (size_t i = 0; i < loop->body.size(); i++) {
+            printStatementTree(
+                loop->body[i].get(),
+                childPrefix + "    ",
+                i + 1 == loop->body.size(),
+                variables
+            );
+        }
+        return;
+    }
+    //loop controls
+    if (dynamic_cast<const BreakStatement*>(statement)) {
+        cout << "BreakStatement" << endl;
+        return;
+    }
+    if (dynamic_cast<const ContinueStatement*>(statement)) {
+        cout << "ContinueStatement" << endl;
+        return;
+    }
     //return statement
     if (const auto* returnStatement =
         dynamic_cast<const ReturnStatement*>(statement)) {

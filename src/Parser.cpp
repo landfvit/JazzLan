@@ -400,6 +400,12 @@ unique_ptr<Statement> Parser::parseStatement() {
     if (check(TokenType::While)) {
         return parseWhileStatement();
     }
+    if (check(TokenType::For)) {
+        return parseForStatement();
+    }
+    if (check(TokenType::Break) || check(TokenType::Continue)) {
+        return parseLoopControlStatement();
+    }
     if (check(TokenType::Function)) {
         return parseFunctionDeclaration();
     }
@@ -595,7 +601,9 @@ unique_ptr<Statement> Parser::parseWhileStatement() {
 
     consume(TokenType::RightParen, "Expected ')'");
 
+    loopDepth++;
     auto body = parseBlock();
+    loopDepth--;
 
     auto statement = make_unique<WhileStatement>();
 
@@ -603,6 +611,53 @@ unique_ptr<Statement> Parser::parseWhileStatement() {
     statement->body = std::move(body);
 
     return statement;
+}
+
+//for loop with an optional variable type
+unique_ptr<Statement> Parser::parseForStatement() {
+    consume(TokenType::For, "Expected 'for'");
+    consume(TokenType::LeftParen, "Expected '('");
+    consume(TokenType::Var, "Expected 'var' in for loop");
+
+    const Token& nameToken = consume(
+        TokenType::Identifier,
+        "Expected loop variable name"
+    );
+
+    auto declaredType = parseTypeAnnotation();
+    consume(TokenType::In, "Expected 'in' after loop variable");
+    auto iterable = parseExpression();
+    consume(TokenType::RightParen, "Expected ')'");
+
+    loopDepth++;
+    auto body = parseBlock();
+    loopDepth--;
+
+    auto statement = make_unique<ForStatement>();
+    statement->name = nameToken.value;
+    statement->declaredType = declaredType;
+    statement->iterable = std::move(iterable);
+    statement->body = std::move(body);
+    return statement;
+}
+
+//checks loop controls before the program executes
+unique_ptr<Statement> Parser::parseLoopControlStatement() {
+    bool isBreak = check(TokenType::Break);
+
+    if (loopDepth == 0) {
+        throw runtime_error(isBreak
+            ? "Break is only allowed inside a loop"
+            : "Continue is only allowed inside a loop");
+    }
+
+    advance();
+    consume(TokenType::Semicolon, "Expected ';'");
+
+    if (isBreak) {
+        return make_unique<BreakStatement>();
+    }
+    return make_unique<ContinueStatement>();
 }
 
 //function declaration
@@ -642,7 +697,13 @@ unique_ptr<Statement> Parser::parseFunctionDeclaration() {
 
     consume(TokenType::RightParen, "Expected ')'");
     auto returnType = parseTypeAnnotation(true);
+
+    //a function cannot control a loop in its caller
+    size_t previousLoopDepth = loopDepth;
+    loopDepth = 0;
     auto body = parseBlock();
+    loopDepth = previousLoopDepth;
+
     auto statement = make_unique<FunctionDeclaration>();
 
     statement->name = nameToken.value;

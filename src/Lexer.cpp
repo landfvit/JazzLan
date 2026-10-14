@@ -40,6 +40,15 @@ TokenType getWordType(string word) {
     if (word == "while") {
         return TokenType::While;
     }
+    if (word == "for") {
+        return TokenType::For;
+    }
+    if (word == "break") {
+        return TokenType::Break;
+    }
+    if (word == "continue") {
+        return TokenType::Continue;
+    }
     if (word == "function") {
         return TokenType::Function;
     }
@@ -290,6 +299,9 @@ string tokenTypeToString(TokenType type) {
         case TokenType::If: return "If";
         case TokenType::Else: return "Else";
         case TokenType::While: return "While";
+        case TokenType::For: return "For";
+        case TokenType::Break: return "Break";
+        case TokenType::Continue: return "Continue";
         case TokenType::Function: return "Function";
         case TokenType::Return: return "Return";
         case TokenType::Void: return "Void";

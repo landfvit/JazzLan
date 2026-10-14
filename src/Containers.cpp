@@ -160,12 +160,60 @@ static vector<pair<Value, Value>> dictionaryEntries(const Value& value) {
     return entries;
 }
 
-//constructs builtin containers and computes their length
+//materializes a range without overflowing signed endpoints
+static Value rangeValues(const vector<Value>& arguments, ContainerHeap& heap) {
+    checkArguments("range", arguments, 1, 3);
+    for (const Value& argument : arguments) {
+        if (!holds_alternative<int64_t>(argument)) {
+            throw runtime_error("range arguments must be int");
+        }
+    }
+
+    int64_t start = arguments.size() == 1 ? 0 : get<int64_t>(arguments[0]);
+    int64_t stop = get<int64_t>(arguments[arguments.size() == 1 ? 0 : 1]);
+    int64_t step = arguments.size() == 3 ? get<int64_t>(arguments[2]) : 1;
+    if (step == 0) {
+        throw runtime_error("range step cannot be zero");
+    }
+
+    auto result = heap.create<ListValue>();
+    if (step > 0 ? start >= stop : start <= stop) {
+        return result;
+    }
+
+    //unsigned subtraction covers the full int64 span and minimum step
+    uint64_t distance = step > 0
+        ? static_cast<uint64_t>(stop) - static_cast<uint64_t>(start)
+        : static_cast<uint64_t>(start) - static_cast<uint64_t>(stop);
+    uint64_t stride = step > 0
+        ? static_cast<uint64_t>(step)
+        : uint64_t{0} - static_cast<uint64_t>(step);
+    uint64_t count = distance / stride + (distance % stride != 0);
+    if (count > result->elements.max_size()) {
+        throw runtime_error("range is too large");
+    }
+
+    result->elements.reserve(static_cast<size_t>(count));
+    int64_t current = start;
+    for (uint64_t i = 0; i < count; i++) {
+        result->elements.emplace_back(current);
+        //advance only when another bounded element remains
+        if (i + 1 < count) {
+            current += step;
+        }
+    }
+    return result;
+}
+
+//constructs builtin containers and ranges or computes their length
 Value callContainerFunction(
     const string& name,
     const vector<Value>& arguments,
     ContainerHeap& heap
 ) {
+    if (name == "range") {
+        return rangeValues(arguments, heap);
+    }
     checkArguments(name, arguments, name == "len" ? 1 : 0, 1);
 
     if (name == "len") {

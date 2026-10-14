@@ -160,6 +160,22 @@ struct WhileStatement : Statement {
     std::vector<std::unique_ptr<Statement>> body;
 };
 
+//for statement with a local loop variable
+struct ForStatement : Statement {
+    std::string name;
+    std::optional<ValueType> declaredType;
+    std::unique_ptr<Expression> iterable;
+    std::vector<std::unique_ptr<Statement>> body;
+};
+
+//exits the nearest loop
+struct BreakStatement : Statement {
+};
+
+//starts the next loop iteration
+struct ContinueStatement : Statement {
+};
+
 //function parameter with optional type
 struct FunctionParameter {
     std::string name;

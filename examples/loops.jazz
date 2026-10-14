@@ -1,0 +1,31 @@
+//range produces an ordinary list and excludes the stop value
+var numbers = range(1, 6);
+print(numbers);
+
+//for creates a fresh loop variable on each iteration
+var squares = [];
+for (var number: int in numbers) {
+    if (number == 3) {
+        continue;
+    }
+    squares.append(number * number);
+}
+print(squares);
+
+//break exits the nearest for or while loop
+var count = 0;
+while (true) {
+    if (count == 3) {
+        break;
+    }
+    print(count);
+    count = count + 1;
+}
+
+print(range(5, 0, -2));
+
+//dictionary iteration visits keys in insertion order
+var scores = {"Jazz": 3, "Lu": 5};
+for (var name: string in scores) {
+    print(name);
+}

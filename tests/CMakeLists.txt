@@ -329,3 +329,4 @@ function finish(): void {
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/containers.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/transforms.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/loops.cmake")
